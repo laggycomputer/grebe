@@ -1,4 +1,4 @@
-use std::cmp::max;
+use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::exit;
@@ -106,7 +106,11 @@ fn main() {
     let start_index_rev = start_index_arg;
     let start_index_fwr = max(start_index_rev, umi_length);
 
-    let levenshtein_max = *args.get_one::<i64>("levenshtein-radius").unwrap();
+    let levenshtein_max = min(*args.get_one::<i64>("levenshtein-radius").unwrap(), umi_length);
+    if levenshtein_max >= umi_length {
+        eprintln!("warning: --levenshtein-max too high to be meaningful")
+    }
+
     // TODO: debug print here
     let proactive_levenshtein = match args.get_one::<bool>("proactive-levenshtein") {
         Some(result) => *result,
