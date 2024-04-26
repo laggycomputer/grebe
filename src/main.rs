@@ -120,7 +120,7 @@ fn main() {
                 continue;
             }
         } else {
-            if seen_umis.iter().any(|known_umi| -> bool {
+            if seen_umis.contains(&umi) || seen_umis.iter().any(|known_umi| -> bool {
                 edit_distance_bounded(
                     known_umi.as_ref(),
                     umi.as_ref(),
