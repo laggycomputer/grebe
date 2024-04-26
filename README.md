@@ -1,4 +1,4 @@
-# `cristatus`
+# `grebe`
 
 A utility for processing Illumina paired-end sequencing data, focused on cleanup, modelled after Trimmomatic, Cutadapt, fastqc, and others, in Rust.
 

@@ -12,8 +12,7 @@ use itertools::Itertools;
 use pluralizer::pluralize;
 
 fn main() {
-    let cmd = clap::command!("cristatus")
-        .bin_name("cristatus")
+    let cmd = clap::command!("grebe")
         .about("Processing tool for Illumina sequencing data")
         .arg(clap::arg!(<"in-forward"> "forward (5'-3') reads to work with")
             .value_name("input forward .fastq")
