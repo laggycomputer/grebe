@@ -154,4 +154,5 @@ fn main() {
     // TODO: verbose logging (masked reads, etc.)
     // TODO: exit codes
     // TODO: transparently handle .f[ast]q.gz[ip]
+    // TODO: do things on quality scores
 }
