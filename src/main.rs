@@ -113,7 +113,12 @@ fn main() {
 
     // TODO: debug print here
     let proactive_levenshtein = match args.get_one::<bool>("proactive-levenshtein") {
-        Some(result) => *result,
+        Some(result) => {
+            if (umi_length) == 0 {
+                eprintln!("warning: --proactive-levenshtein is meaningless with no UMI")
+            }
+            *result
+        }
         None => levenshtein_max <= 2
     };
 
