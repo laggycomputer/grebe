@@ -6,6 +6,7 @@ use std::process::exit;
 use bio::alphabets::dna::alphabet;
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
+use clap::parser::ValueSource;
 use clap::ValueHint;
 use editdistancek::edit_distance_bounded;
 use itertools::Itertools;
@@ -106,7 +107,7 @@ fn main() {
     let start_index_fwr = max(start_index_rev, umi_length);
 
     let levenshtein_max = min(*args.get_one::<i64>("levenshtein-radius").unwrap(), umi_length);
-    if levenshtein_max >= umi_length {
+    if levenshtein_max >= umi_length && args.value_source("levenshtein-radius") == Some(ValueSource::CommandLine) {
         eprintln!("warning: --levenshtein-max too high to be meaningful")
     }
 
