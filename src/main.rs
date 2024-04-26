@@ -63,10 +63,9 @@ fn main() {
         let rec_rev = rec_rev.unwrap();
 
         let umi = String::from_utf8((&rec_fwr.seq()[..*umi_length as usize]).to_vec()).unwrap();
-        if seen_umis.contains(&umi) {
+        if !seen_umis.insert(umi) {
             continue
         }
-        seen_umis.insert(umi);
         count += 1;
 
         let fwr_without_umi = &rec_fwr.seq()[*umi_length as usize..];
