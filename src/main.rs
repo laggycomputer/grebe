@@ -23,7 +23,7 @@ fn main() {
             .required(false))
         .arg(clap::arg!(-'u' <"umi-length"> "UMI length (strip this many bases off forward reads)")
             .alias("UMI-LENGTH")
-            .value_parser(0..15)
+            .value_parser(0..=15)
             .required(true))
         .arg(clap::arg!(<"out-forward"> "where to place processed forward reads")  // TODO: output more sequence formats
             .value_name("output forward .fastq")
