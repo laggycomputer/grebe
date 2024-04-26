@@ -49,8 +49,6 @@ fn main() {
     let mut writer_rev = fastq::Writer::to_file(args.get_one::<PathBuf>("out-reverse").unwrap())
         .expect("couldn't open output reverse .fastq");
 
-    // TODO: drop masked reads
-
     let umi_length = args.get_one::<i64>("umi-length").expect("need valid UMI length, even 0");
     let mut seen_umis = HashSet::new();
 
@@ -62,6 +60,11 @@ fn main() {
 
         let rec_fwr = rec_fwr.unwrap();
         let rec_rev = rec_rev.unwrap();
+
+        let all_ns = |s: &u8 | -> bool { *s == ('N' as u8) };
+        if rec_fwr.seq().iter().all(all_ns) || rec_rev.seq().iter().all(all_ns) {
+            continue
+        }
 
         let umi = String::from_utf8((&rec_fwr.seq()[..*umi_length as usize]).to_vec()).unwrap();
         if !seen_umis.insert(umi) {
