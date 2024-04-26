@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::exit;
 
+use bio::alignment::distance::levenshtein;
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
 use clap::ValueHint;
@@ -25,6 +26,12 @@ fn main() {
             .alias("UMI-LENGTH")
             .value_parser(0..=15)
             .required(true))
+        .arg(clap::arg!(-'l' <"levenshtein-radius"> "(0 to disable) bin UMIs together if at most this Levenshtein distance apart (useful for small libraries to reduce error rates)")
+            .alias("--levenshtein")
+            .alias("--levenshtein-radius")
+            .value_parser(0..=15)
+            .required(false)
+            .default_value("0"))
         .arg(clap::arg!(<"out-forward"> "where to place processed forward reads")  // TODO: output more sequence formats
             .value_name("output forward .fastq")
             .value_parser(clap::value_parser!(PathBuf))
@@ -73,6 +80,8 @@ fn main() {
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
     let mut seen_umis = HashSet::new();
 
+    let levenshtein_min = *args.get_one::<i64>("levenshtein-radius").unwrap();
+
     let mut total_records = 0;
     let mut good_records = 0;
     let pairs = reader_fwr.records().zip(reader_rev.records());
@@ -100,8 +109,15 @@ fn main() {
         }
 
         let umi = String::from_utf8((&rec_fwr.seq()[..umi_length as usize]).to_vec()).unwrap();
-        if !seen_umis.insert(umi) {
-            continue;
+        if levenshtein_min == 0 {
+            if !seen_umis.insert(umi) {
+                continue;
+            }
+        } else {
+            if seen_umis.iter().any(|known_umi| -> bool { levenshtein(known_umi.as_ref(), umi.as_ref()) <= levenshtein_min as u32 }) {
+                continue;
+            }
+            seen_umis.insert(umi);
         }
 
         good_records += 1;
