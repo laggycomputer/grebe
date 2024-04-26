@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::exit;
 
-use bio::alignment::distance::levenshtein;
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
 use clap::ValueHint;
+use editdistancek::edit_distance_bounded;
 use pluralizer::pluralize;
 
 fn main() {
@@ -118,7 +118,11 @@ fn main() {
             }
         } else {
             if seen_umis.iter().any(|known_umi| -> bool {
-                levenshtein(known_umi.as_ref(), umi.as_ref()) <= levenshtein_min as u32
+                edit_distance_bounded(
+                    known_umi.as_ref(),
+                    umi.as_ref(),
+                    levenshtein_min as usize,
+                ).is_some()
             }) {
                 continue;
             }
@@ -133,14 +137,14 @@ fn main() {
             std::str::from_utf8(rec_fwr.name()).unwrap(),
             Option::from(rec_fwr.id()),
             fwr_without_umi,
-            rec_fwr.qual()
+            rec_fwr.qual(),
         )
             .expect("couldn't write out a forward record");
         writer_rev.write(
             std::str::from_utf8(rec_rev.name()).unwrap(),
             Option::from(rec_rev.id()),
             &rec_rev.seq(),
-            rec_rev.qual()
+            rec_rev.qual(),
         )
             .expect("couldn't write out a reverse record");
     }
