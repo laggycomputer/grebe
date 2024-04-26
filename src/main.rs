@@ -152,46 +152,48 @@ fn main() {
             continue;
         }
 
-        let umi = String::from_utf8((&rec_fwr.seq()[..umi_length as usize]).to_vec()).unwrap();
-        if levenshtein_max == 0 {
-            if !seen_umis.insert(umi) {
-                continue;
-            }
-        } else {
-            if proactive_levenshtein {
-                // instead of checking the distance to elements of the set of known UMIs, generate
-                // UMIs within a certain distance and check them
-                // TODO: assumes no Ns outside of masked reads
-                let alphabet_symbols = alphabet().symbols;
-                for dist in 0..=levenshtein_max {
-                    let new_bases = std::iter::repeat(alphabet_symbols.iter())
-                        .take(dist as usize)
-                        .multi_cartesian_product();
-                    let mut umi_modified = umi.clone();
-                    for indicies_to_replace in (0..umi_length).combinations(dist as usize) {
-                        for base_substitution in new_bases.clone() {
-                            for (index, new_value) in indicies_to_replace.iter().zip(base_substitution) {
-                                umi_modified.remove(*index as usize);
-                                umi_modified.insert(*index as usize, new_value as u8 as char);
-                            }
-                        }
-                        if seen_umis.contains(&umi_modified) {
-                            continue;
-                        }
-                    }
-                }
-            } else {
-                if seen_umis.contains(&umi) || seen_umis.iter().any(|known_umi| -> bool {
-                    edit_distance_bounded(
-                        known_umi.as_ref(),
-                        umi.as_ref(),
-                        levenshtein_max as usize,
-                    ).is_some()
-                }) {
+        if (umi_length) {
+            let umi = String::from_utf8((&rec_fwr.seq()[..umi_length as usize]).to_vec()).unwrap();
+            if levenshtein_max == 0 {
+                if !seen_umis.insert(umi) {
                     continue;
                 }
+            } else {
+                if proactive_levenshtein {
+                    // instead of checking the distance to elements of the set of known UMIs, generate
+                    // UMIs within a certain distance and check them
+                    // TODO: assumes no Ns outside of masked reads
+                    let alphabet_symbols = alphabet().symbols;
+                    for dist in 0..=levenshtein_max {
+                        let new_bases = std::iter::repeat(alphabet_symbols.iter())
+                            .take(dist as usize)
+                            .multi_cartesian_product();
+                        let mut umi_modified = umi.clone();
+                        for indicies_to_replace in (0..umi_length).combinations(dist as usize) {
+                            for base_substitution in new_bases.clone() {
+                                for (index, new_value) in indicies_to_replace.iter().zip(base_substitution) {
+                                    umi_modified.remove(*index as usize);
+                                    umi_modified.insert(*index as usize, new_value as u8 as char);
+                                }
+                            }
+                            if seen_umis.contains(&umi_modified) {
+                                continue;
+                            }
+                        }
+                    }
+                } else {
+                    if seen_umis.contains(&umi) || seen_umis.iter().any(|known_umi| -> bool {
+                        edit_distance_bounded(
+                            known_umi.as_ref(),
+                            umi.as_ref(),
+                            levenshtein_max as usize,
+                        ).is_some()
+                    }) {
+                        continue;
+                    }
+                }
+                seen_umis.insert(umi);
             }
-            seen_umis.insert(umi);
         }
 
         good_records += 1;
