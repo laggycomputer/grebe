@@ -153,4 +153,5 @@ fn main() {
     // TODO: stop assuming forward and reverse reads appear in the proper order
     // TODO: verbose logging (masked reads, etc.)
     // TODO: exit codes
+    // TODO: transparently handle .f[ast]q.gz[ip]
 }
