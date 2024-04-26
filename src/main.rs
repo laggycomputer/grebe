@@ -118,4 +118,6 @@ fn main() {
 
     println!("filtered {} down to {}", pluralize("pair", total_records, true), pluralize("pair", good_records, true));
     // TODO: stop assuming forward and reverse reads appear in the proper order
+    // TODO: verbose logging (masked reads, etc.)
+    // TODO: exit codes
 }
