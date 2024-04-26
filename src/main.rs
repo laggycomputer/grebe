@@ -3,10 +3,12 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::exit;
 
+use bio::alphabets::dna::alphabet;
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
 use clap::ValueHint;
 use editdistancek::edit_distance_bounded;
+use itertools::Itertools;
 use pluralizer::pluralize;
 
 fn main() {
@@ -23,7 +25,8 @@ fn main() {
             .value_hint(ValueHint::FilePath))
         .arg(clap::arg!(--"phred64" "use the legacy phred64 encoding (over phred33) where score 0 \
         = \"@\" instead of \"1\"")
-            .required(false))
+            .required(false)
+            .default_value("false"))
         .arg(clap::arg!(-'u' <"UMI length"> "UMI length (strip this many bases off forward reads)")
             .id("umi-length")
             .alias("--umi-length")
@@ -39,7 +42,14 @@ fn main() {
             .value_parser(0..=15)
             .required(false)
             .default_value("0"))
-        .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs, including any UMI stripping; reads of insufficient length are dropped")
+        .arg(clap::arg!(--"proactive-levenshtein" <"force-mode"> "(for advanced users) force \
+        guess-and-check approach to levenshtein distance (default is true if -l is 1 or 2, false \
+        otherwise)")
+            .alias("--pl")
+            .value_parser(clap::value_parser!(bool))
+            .required(false))
+        .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs, \
+        including any UMI stripping; reads of insufficient length are dropped")
             .alias("--start-index")
             .value_parser(0..=600)
             .required(false)
@@ -97,6 +107,11 @@ fn main() {
     let start_index_fwr = max(start_index_rev, umi_length);
 
     let levenshtein_max = *args.get_one::<i64>("levenshtein-radius").unwrap();
+    // TODO: debug print here
+    let proactive_levenshtein = match args.get_one::<bool>("proactive-levenshtein") {
+        Some(result) => *result,
+        None => levenshtein_max <= 2
+    };
 
     let mut total_records = 0;
     let mut good_records = 0;
@@ -134,19 +149,42 @@ fn main() {
                 continue;
             }
         } else {
-            if seen_umis.contains(&umi) || seen_umis.iter().any(|known_umi| -> bool {
-                edit_distance_bounded(
-                    known_umi.as_ref(),
-                    umi.as_ref(),
-                    levenshtein_max as usize,
-                ).is_some()
-            }) {
-                continue;
+            if proactive_levenshtein {
+                // instead of checking the distance to elements of the set of known UMIs, generate
+                // UMIs within a certain distance and check them
+                // TODO: assumes no Ns outside of masked reads
+                let alphabet_symbols = alphabet().symbols;
+                for dist in 0..=levenshtein_max {
+                    let new_bases = std::iter::repeat(alphabet_symbols.iter())
+                        .take(dist as usize)
+                        .multi_cartesian_product();
+                    let mut umi_modified = umi.clone();
+                    for indicies_to_replace in (0..umi_length).combinations(dist as usize) {
+                        for base_substitution in new_bases.clone() {
+                            for (index, new_value) in indicies_to_replace.iter().zip(base_substitution) {
+                                umi_modified.remove(*index as usize);
+                                umi_modified.insert(*index as usize, new_value as u8 as char);
+                            }
+                        }
+                        if seen_umis.contains(&umi_modified) {
+                            continue;
+                        }
+                    }
+                }
+            } else {
+                if seen_umis.contains(&umi) || seen_umis.iter().any(|known_umi| -> bool {
+                    edit_distance_bounded(
+                        known_umi.as_ref(),
+                        umi.as_ref(),
+                        levenshtein_max as usize,
+                    ).is_some()
+                }) {
+                    continue;
+                }
             }
             seen_umis.insert(umi);
         }
 
-        println!("{good_records}");
         good_records += 1;
 
         writer_fwr.write(
