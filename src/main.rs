@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::process::exit;
 
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
@@ -39,17 +40,39 @@ fn main() {
 
     let args = cmd.get_matches();
 
-    let reader_fwr = fastq::Reader::from_file(args.get_one::<PathBuf>("in-forward").unwrap())
-        .expect("couldn't open input forward .fastq");
-    let reader_rev = fastq::Reader::from_file(args.get_one::<PathBuf>("in-reverse").unwrap())
-        .expect("couldn't open input reverse .fastq");
+    let reader_fwr = match fastq::Reader::from_file(args.get_one::<PathBuf>("in-forward").unwrap()) {
+        Ok(result) => result,
+        Err(_) => {
+            eprintln!("couldn't open input forward .fastq");
+            exit(1);
+        }
+    };
 
-    let mut writer_fwr = fastq::Writer::to_file(args.get_one::<PathBuf>("out-forward").unwrap())
-        .expect("couldn't open output forward .fastq");
-    let mut writer_rev = fastq::Writer::to_file(args.get_one::<PathBuf>("out-reverse").unwrap())
-        .expect("couldn't open output reverse .fastq");
+    let reader_rev = match fastq::Reader::from_file(args.get_one::<PathBuf>("in-reverse").unwrap()) {
+        Ok(result) => result,
+        Err(_) => {
+            eprintln!("couldn't open input reverse .fastq");
+            exit(1);
+        }
+    };
 
-    let umi_length = args.get_one::<i64>("umi-length").expect("need valid UMI length, even 0");
+    let mut writer_fwr = match fastq::Writer::to_file(args.get_one::<PathBuf>("out-forward").unwrap()) {
+        Ok(result) => result,
+        Err(_) => {
+            eprintln!("couldn't open output forward .fastq");
+            exit(1);
+        }
+    };
+
+    let mut writer_rev = match fastq::Writer::to_file(args.get_one::<PathBuf>("out-reverse").unwrap()) {
+        Ok(result) => result,
+        Err(_) => {
+            eprintln!("couldn't open output reverse .fastq");
+            exit(1);
+        }
+    };
+
+    let umi_length = args.get_one::<i64>("umi-length").unwrap();
     let mut seen_umis = HashSet::new();
 
     let mut total_records = 0;
@@ -58,8 +81,21 @@ fn main() {
     for (rec_fwr, rec_rev) in pairs {
         total_records += 1;
 
-        let rec_fwr = rec_fwr.unwrap();
-        let rec_rev = rec_rev.unwrap();
+        let rec_fwr = match rec_fwr {
+            Ok(result) => result,
+            Err(_) => {
+                eprintln!("forward record {total_records} was invalid");
+                exit(1);
+            }
+        };
+
+        let rec_rev = match rec_rev {
+            Ok(result) => result,
+            Err(_) => {
+                eprintln!("reverse record {total_records} was invalid");
+                exit(1);
+            }
+        };
 
         let all_ns = |s: &u8| -> bool { *s == ('N' as u8) };
         if rec_fwr.seq().iter().all(all_ns) || rec_rev.seq().iter().all(all_ns) {
