@@ -47,7 +47,6 @@ fn main() {
             exit(1);
         }
     };
-
     let reader_rev = match fastq::Reader::from_file(args.get_one::<PathBuf>("in-reverse").unwrap()) {
         Ok(result) => result,
         Err(_) => {
@@ -63,7 +62,6 @@ fn main() {
             exit(1);
         }
     };
-
     let mut writer_rev = match fastq::Writer::to_file(args.get_one::<PathBuf>("out-reverse").unwrap()) {
         Ok(result) => result,
         Err(_) => {
@@ -88,7 +86,6 @@ fn main() {
                 exit(1);
             }
         };
-
         let rec_rev = match rec_rev {
             Ok(result) => result,
             Err(_) => {
