@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::exit;
@@ -36,6 +37,11 @@ fn main() {
             .alias("--levenshtein")
             .alias("--levenshtein-radius")
             .value_parser(0..=15)
+            .required(false)
+            .default_value("0"))
+        .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs, including any UMI stripping; reads of insufficient length are dropped")
+            .alias("--start-index")
+            .value_parser(0..=600)
             .required(false)
             .default_value("0"))
         .arg(clap::arg!(<"out-forward"> "where to place processed forward reads")  // TODO: output more sequence formats
@@ -86,6 +92,10 @@ fn main() {
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
     let mut seen_umis = HashSet::new();
 
+    let start_index_arg = *args.get_one::<i64>("start-at").unwrap();
+    let start_index_rev = start_index_arg;
+    let start_index_fwr = max(start_index_rev, umi_length);
+
     let levenshtein_min = *args.get_one::<i64>("levenshtein-radius").unwrap();
 
     let mut total_records = 0;
@@ -108,6 +118,10 @@ fn main() {
                 exit(1);
             }
         };
+
+        if rec_fwr.seq().len() < (start_index_fwr + 1) as usize || rec_rev.seq().len() < (start_index_rev + 1) as usize {
+            continue;
+        }
 
         let all_ns = |s: &u8| -> bool { *s == ('N' as u8) };
         if rec_fwr.seq().iter().all(all_ns) || rec_rev.seq().iter().all(all_ns) {
@@ -135,18 +149,17 @@ fn main() {
         println!("{good_records}");
         good_records += 1;
 
-        let fwr_without_umi = &rec_fwr.seq()[umi_length as usize..];
         writer_fwr.write(
             std::str::from_utf8(rec_fwr.name()).unwrap(),
             Option::from(rec_fwr.id()),
-            fwr_without_umi,
+            &rec_fwr.seq()[start_index_fwr as usize..],
             rec_fwr.qual(),
         )
             .expect("couldn't write out a forward record");
         writer_rev.write(
             std::str::from_utf8(rec_rev.name()).unwrap(),
             Option::from(rec_rev.id()),
-            &rec_rev.seq(),
+            &rec_rev.seq()[start_index_rev as usize..],
             rec_rev.qual(),
         )
             .expect("couldn't write out a reverse record");
