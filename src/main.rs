@@ -70,7 +70,7 @@ fn main() {
         }
     };
 
-    let umi_length = args.get_one::<i64>("umi-length").unwrap();
+    let umi_length = *args.get_one::<i64>("umi-length").unwrap();
     let mut seen_umis = HashSet::new();
 
     let mut total_records = 0;
@@ -99,14 +99,14 @@ fn main() {
             continue;
         }
 
-        let umi = String::from_utf8((&rec_fwr.seq()[..*umi_length as usize]).to_vec()).unwrap();
+        let umi = String::from_utf8((&rec_fwr.seq()[..umi_length as usize]).to_vec()).unwrap();
         if !seen_umis.insert(umi) {
             continue;
         }
 
         good_records += 1;
 
-        let fwr_without_umi = &rec_fwr.seq()[*umi_length as usize..];
+        let fwr_without_umi = &rec_fwr.seq()[umi_length as usize..];
         writer_fwr.write(std::str::from_utf8(rec_fwr.name()).unwrap(), Option::from(rec_fwr.id()), fwr_without_umi, rec_fwr.qual())
             .expect("couldn't write out a forward record");
         writer_rev.write(std::str::from_utf8(rec_rev.name()).unwrap(), Option::from(rec_rev.id()), &rec_rev.seq(), rec_rev.qual())
