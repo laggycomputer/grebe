@@ -20,7 +20,7 @@ fn main() {
             .value_name("input reverse .fastq")
             .value_parser(clap::value_parser!(PathBuf))
             .value_hint(ValueHint::FilePath))
-        .arg(clap::arg!(--"phred64" "use the legacy phred64 encoding (over phred33) where score 0 = \"@\"")
+        .arg(clap::arg!(--"phred64" "use the legacy phred64 encoding (over phred33) where score 0 = \"@\" instead of \"1\"")
             .required(false))
         .arg(clap::arg!(-'u' <"umi-length"> "UMI length (strip this many bases off forward reads)")
             .alias("UMI-LENGTH")
@@ -120,6 +120,7 @@ fn main() {
             seen_umis.insert(umi);
         }
 
+        println!("{good_records}");
         good_records += 1;
 
         let fwr_without_umi = &rec_fwr.seq()[umi_length as usize..];
