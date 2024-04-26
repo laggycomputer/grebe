@@ -96,7 +96,7 @@ fn main() {
     let start_index_rev = start_index_arg;
     let start_index_fwr = max(start_index_rev, umi_length);
 
-    let levenshtein_min = *args.get_one::<i64>("levenshtein-radius").unwrap();
+    let levenshtein_max = *args.get_one::<i64>("levenshtein-radius").unwrap();
 
     let mut total_records = 0;
     let mut good_records = 0;
@@ -129,7 +129,7 @@ fn main() {
         }
 
         let umi = String::from_utf8((&rec_fwr.seq()[..umi_length as usize]).to_vec()).unwrap();
-        if levenshtein_min == 0 {
+        if levenshtein_max == 0 {
             if !seen_umis.insert(umi) {
                 continue;
             }
@@ -138,7 +138,7 @@ fn main() {
                 edit_distance_bounded(
                     known_umi.as_ref(),
                     umi.as_ref(),
-                    levenshtein_min as usize,
+                    levenshtein_max as usize,
                 ).is_some()
             }) {
                 continue;
