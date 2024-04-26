@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
 use clap::ValueHint;
+use pluralizer::pluralize;
 
 fn main() {
     let cmd = clap::command!("cristatus")
@@ -53,11 +54,11 @@ fn main() {
     let umi_length = args.get_one::<i64>("umi-length").expect("need valid UMI length, even 0");
     let mut seen_umis = HashSet::new();
 
-    let mut total = 0;
-    let mut count = 0;
+    let mut total_records = 0;
+    let mut good_records = 0;
     let pairs = reader_fwr.records().zip(reader_rev.records());
     for (rec_fwr, rec_rev) in pairs {
-        total += 1;
+        total_records += 1;
 
         let rec_fwr = rec_fwr.unwrap();
         let rec_rev = rec_rev.unwrap();
@@ -66,7 +67,7 @@ fn main() {
         if !seen_umis.insert(umi) {
             continue
         }
-        count += 1;
+        good_records += 1;
 
         let fwr_without_umi = &rec_fwr.seq()[*umi_length as usize..];
 
@@ -77,8 +78,7 @@ fn main() {
             .expect("couldn't write out a reverse record");
     }
 
-    println!("{}", total);
-    println!("{}", count);
+    println!("filtered {} down to {}", pluralize("pair", total_records, true), pluralize("pair", good_records, true));
 
     // TODO: stop assuming forward and reverse reads appear in the proper order
 }
