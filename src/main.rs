@@ -23,13 +23,16 @@ fn main() {
         .arg(clap::arg!(--"phred64" "use the legacy phred64 encoding (over phred33) where score 0 \
         = \"@\" instead of \"1\"")
             .required(false))
-        .arg(clap::arg!(-'u' <"umi-length"> "UMI length (strip this many bases off forward reads)")
-            .alias("UMI-LENGTH")
+        .arg(clap::arg!(-'u' <"UMI length"> "UMI length (strip this many bases off forward reads)")
+            .id("umi-length")
+            .alias("--umi-length")
             .value_parser(0..=15)
-            .required(true))
-        .arg(clap::arg!(-'l' <"levenshtein-radius"> "(0 to disable) bin UMIs together if at most \
+            .required(false)
+            .default_value("0"))
+        .arg(clap::arg!(-'l' <"levenshtein radius"> "(0 to disable) bin UMIs together if at most \
         this Levenshtein distance apart (useful for small libraries to reduce error rates, but \
         incurs time penalty quadratic in number of reads)")
+            .id("levenshtein-radius")
             .alias("--levenshtein")
             .alias("--levenshtein-radius")
             .value_parser(0..=15)
