@@ -20,13 +20,16 @@ fn main() {
             .value_name("input reverse .fastq")
             .value_parser(clap::value_parser!(PathBuf))
             .value_hint(ValueHint::FilePath))
-        .arg(clap::arg!(--"phred64" "use the legacy phred64 encoding (over phred33) where score 0 = \"@\" instead of \"1\"")
+        .arg(clap::arg!(--"phred64" "use the legacy phred64 encoding (over phred33) where score 0 \
+        = \"@\" instead of \"1\"")
             .required(false))
         .arg(clap::arg!(-'u' <"umi-length"> "UMI length (strip this many bases off forward reads)")
             .alias("UMI-LENGTH")
             .value_parser(0..=15)
             .required(true))
-        .arg(clap::arg!(-'l' <"levenshtein-radius"> "(0 to disable) bin UMIs together if at most this Levenshtein distance apart (useful for small libraries to reduce error rates)")
+        .arg(clap::arg!(-'l' <"levenshtein-radius"> "(0 to disable) bin UMIs together if at most \
+        this Levenshtein distance apart (useful for small libraries to reduce error rates, but \
+        incurs time penalty quadratic in number of reads)")
             .alias("--levenshtein")
             .alias("--levenshtein-radius")
             .value_parser(0..=15)
@@ -114,7 +117,9 @@ fn main() {
                 continue;
             }
         } else {
-            if seen_umis.iter().any(|known_umi| -> bool { levenshtein(known_umi.as_ref(), umi.as_ref()) <= levenshtein_min as u32 }) {
+            if seen_umis.iter().any(|known_umi| -> bool {
+                levenshtein(known_umi.as_ref(), umi.as_ref()) <= levenshtein_min as u32
+            }) {
                 continue;
             }
             seen_umis.insert(umi);
@@ -124,9 +129,19 @@ fn main() {
         good_records += 1;
 
         let fwr_without_umi = &rec_fwr.seq()[umi_length as usize..];
-        writer_fwr.write(std::str::from_utf8(rec_fwr.name()).unwrap(), Option::from(rec_fwr.id()), fwr_without_umi, rec_fwr.qual())
+        writer_fwr.write(
+            std::str::from_utf8(rec_fwr.name()).unwrap(),
+            Option::from(rec_fwr.id()),
+            fwr_without_umi,
+            rec_fwr.qual()
+        )
             .expect("couldn't write out a forward record");
-        writer_rev.write(std::str::from_utf8(rec_rev.name()).unwrap(), Option::from(rec_rev.id()), &rec_rev.seq(), rec_rev.qual())
+        writer_rev.write(
+            std::str::from_utf8(rec_rev.name()).unwrap(),
+            Option::from(rec_rev.id()),
+            &rec_rev.seq(),
+            rec_rev.qual()
+        )
             .expect("couldn't write out a reverse record");
     }
 
