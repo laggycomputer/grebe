@@ -198,7 +198,7 @@ fn main() {
             continue;
         }
 
-        let all_ns = |s: &u8| -> bool { *s == ('N' as u8) };
+        let all_ns = |s: &u8| *s == ('N' as u8);
         if rec_fwr.seq().iter().all(all_ns) || rec_rev.seq().iter().all(all_ns) {
             continue;
         }
@@ -234,13 +234,13 @@ fn main() {
                         }
                     }
                 } else {
-                    if seen_umis.contains(&umi) || seen_umis.iter().any(|known_umi| -> bool {
+                    if seen_umis.contains(&umi) || seen_umis.iter().any(|known_umi|
                         edit_distance_bounded(
                             known_umi.as_ref(),
                             umi.as_ref(),
                             levenshtein_max as usize,
                         ).is_some()
-                    }) {
+                    ) {
                         continue;
                     }
                 }
