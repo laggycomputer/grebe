@@ -4,5 +4,5 @@ A utility for processing Illumina paired-end sequencing data, focused on cleanup
 
 Built with https://github.com/rust-bio/rust-bio
 
-## where'd the name come from?
-the _paired_ dance of https://en.wikipedia.org/wiki/Great_crested_grebe
+## Where'd the name come from?
+The great crested grebe has some __rust__-like coloration in breeding plumage, and has a __pair__ mating display. 
