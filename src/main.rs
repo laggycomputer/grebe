@@ -155,7 +155,7 @@ fn main() {
         }
 
         if umi_length > 0 {
-            let umi = String::from_utf8((&rec_fwr.seq()[..umi_length as usize]).to_vec()).unwrap();
+            let umi: Vec<u8> = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
                 if !seen_umis.insert(umi) {
                     continue;
@@ -172,8 +172,7 @@ fn main() {
                         for base_substitution in new_bases.clone() {
                             let mut umi_modified = umi.clone();
                             for (index, new_value) in (&indices_to_replace).iter().zip(base_substitution) {
-                                umi_modified.remove(*index as usize);
-                                umi_modified.insert(*index as usize, new_value);
+                                umi_modified[*index as usize] = new_value as u8;
                             }
                             if seen_umis.contains(&umi_modified) {
                                 continue 'pairs;
