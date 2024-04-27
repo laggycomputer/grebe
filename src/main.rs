@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::process::exit;
 
-use bio::alphabets::dna::alphabet;
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
 use clap::parser::ValueSource;
@@ -163,18 +162,17 @@ fn main() {
                 }
             } else {
                 if proactive_levenshtein {
-                    // instead of checking the distance to elements of the set of known UMIs, generate
-                    // UMIs within a certain distance and check them
+                    // instead of checking the distance to elements of the set of known UMIs,
+                    // generate UMIs within a certain distance and check them
                     // TODO: assumes no Ns outside of masked reads
-                    let alphabet_symbols = alphabet().symbols;
                     for dist in 0..=levenshtein_max {
-                        let new_bases = std::iter::repeat(alphabet_symbols.iter())
+                        let new_bases = std::iter::repeat("ATCG".chars())
                             .take(dist as usize)
                             .multi_cartesian_product();
                         let mut umi_modified = umi.clone();
-                        for indicies_to_replace in (0..umi_length).combinations(dist as usize) {
+                        for indices_to_replace in (0..umi_length).combinations(dist as usize) {
                             for base_substitution in new_bases.clone() {
-                                for (index, new_value) in indicies_to_replace.iter().zip(base_substitution) {
+                                for (index, new_value) in indices_to_replace.iter().zip(base_substitution) {
                                     umi_modified.remove(*index as usize);
                                     umi_modified.insert(*index as usize, new_value as u8 as char);
                                 }
