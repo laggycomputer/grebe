@@ -165,20 +165,18 @@ fn main() {
                     // instead of checking the distance to elements of the set of known UMIs,
                     // generate UMIs within a certain distance and check them
                     // TODO: assumes no Ns outside of masked reads
-                    for dist in 0..=levenshtein_max {
-                        let new_bases = std::iter::repeat("ATCG".chars())
-                            .take(dist as usize)
-                            .multi_cartesian_product();
-                        for indices_to_replace in (0..umi_length).combinations(dist as usize) {
-                            for base_substitution in new_bases.clone() {
-                                let mut umi_modified = umi.clone();
-                                for (index, new_value) in (&indices_to_replace).iter().zip(base_substitution) {
-                                    umi_modified.remove(*index as usize);
-                                    umi_modified.insert(*index as usize, new_value);
-                                }
-                                if seen_umis.contains(&umi_modified) {
-                                    continue 'pairs;
-                                }
+                    let new_bases = std::iter::repeat("ATCG".chars())
+                        .take(levenshtein_max as usize)
+                        .multi_cartesian_product();
+                    for indices_to_replace in (0..umi_length).combinations(levenshtein_max as usize) {
+                        for base_substitution in new_bases.clone() {
+                            let mut umi_modified = umi.clone();
+                            for (index, new_value) in (&indices_to_replace).iter().zip(base_substitution) {
+                                umi_modified.remove(*index as usize);
+                                umi_modified.insert(*index as usize, new_value);
+                            }
+                            if seen_umis.contains(&umi_modified) {
+                                continue 'pairs;
                             }
                         }
                     }
