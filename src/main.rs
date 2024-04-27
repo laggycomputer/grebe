@@ -127,7 +127,7 @@ fn main() {
     let mut total_records = 0;
     let mut good_records = 0;
     let pairs = reader_fwr.records().zip(reader_rev.records());
-    for (rec_fwr, rec_rev) in pairs {
+    'pairs: for (rec_fwr, rec_rev) in pairs {
         total_records += 1;
 
         let rec_fwr = match rec_fwr {
@@ -169,16 +169,16 @@ fn main() {
                         let new_bases = std::iter::repeat("ATCG".chars())
                             .take(dist as usize)
                             .multi_cartesian_product();
-                        let mut umi_modified = umi.clone();
                         for indices_to_replace in (0..umi_length).combinations(dist as usize) {
                             for base_substitution in new_bases.clone() {
-                                for (index, new_value) in indices_to_replace.iter().zip(base_substitution) {
+                                let mut umi_modified = umi.clone();
+                                for (index, new_value) in (&indices_to_replace).iter().zip(base_substitution) {
                                     umi_modified.remove(*index as usize);
-                                    umi_modified.insert(*index as usize, new_value as u8 as char);
+                                    umi_modified.insert(*index as usize, new_value);
                                 }
-                            }
-                            if seen_umis.contains(&umi_modified) {
-                                continue;
+                                if seen_umis.contains(&umi_modified) {
+                                    continue 'pairs;
+                                }
                             }
                         }
                     }
