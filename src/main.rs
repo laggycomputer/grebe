@@ -152,7 +152,7 @@ fn main() {
             continue;
         }
 
-        if (umi_length) {
+        if umi_length > 0 {
             let umi = String::from_utf8((&rec_fwr.seq()[..umi_length as usize]).to_vec()).unwrap();
             if levenshtein_max == 0 {
                 if !seen_umis.insert(umi) {
