@@ -29,7 +29,7 @@ fn main() {
             .default_value("false"))
         .arg(clap::arg!(-'u' <"UMI length"> "UMI length (strip this many bases off forward reads)")
             .id("umi-length")
-            .alias("--umi-length")
+            .alias("umi-length")
             .value_parser(0..=15)
             .required(false)
             .default_value("0"))
@@ -37,15 +37,16 @@ fn main() {
         this Levenshtein distance apart (useful for small libraries to reduce error rates, but \
         incurs time penalty quadratic in number of reads)")
             .id("levenshtein-radius")
-            .alias("--levenshtein")
-            .alias("--levenshtein-radius")
+            .alias("levenshtein")
+            .alias("levenshtein-radius")
+            .alias("lr")
             .value_parser(0..=15)
             .required(false)
             .default_value("0"))
         .arg(clap::arg!(--"proactive-levenshtein" <"force-mode"> "(for advanced users) force \
         guess-and-check approach to levenshtein distance (default is true if -l is 1 or 2, false \
         otherwise)")
-            .alias("--pl")
+            .alias("pl")
             .value_parser(clap::value_parser!(bool))
             .required(false))
         .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs, \
@@ -114,8 +115,10 @@ fn main() {
     // TODO: debug print here
     let proactive_levenshtein = match args.get_one::<bool>("proactive-levenshtein") {
         Some(result) => {
-            if (umi_length) == 0 {
+            if umi_length == 0 {
                 eprintln!("warning: --proactive-levenshtein is meaningless with no UMI")
+            } else if levenshtein_max == 0 {
+                eprintln!("warning: --proactive-levenshtein is meaningless with -l 0")
             }
             *result
         }
