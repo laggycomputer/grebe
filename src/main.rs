@@ -1,5 +1,8 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
+use std::fs::File;
+use std::io;
+use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -8,8 +11,42 @@ use bio::io::fastq;
 use clap::parser::ValueSource;
 use clap::ValueHint;
 use editdistancek::edit_distance_bounded;
+use flate2::bufread::MultiGzDecoder;
 use itertools::Itertools;
 use pluralizer::pluralize;
+
+enum ReaderMaybeGzip {
+    GZIP(MultiGzDecoder<BufReader<File>>),
+    UNCOMPRESSED(BufReader<File>),
+}
+
+impl Read for ReaderMaybeGzip {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        match self {
+            ReaderMaybeGzip::GZIP(backer) => { backer.read(buf) }
+            ReaderMaybeGzip::UNCOMPRESSED(backer) => { backer.read(buf) }
+        }
+    }
+}
+
+fn reader_maybe_gzip(path_buf: &PathBuf)
+                     -> Result<(fastq::Reader<BufReader<ReaderMaybeGzip>>, bool), io::Error> {
+    let mut file = File::open(path_buf)?;
+    let mut magic = [0; 2];
+    file.read(&mut magic[..])?;
+
+    let reopen = BufReader::new(File::open(path_buf)?);
+
+    if magic.eq(&[0x1f, 0x8b]) {
+        Ok((fastq::Reader::from_bufread(BufReader::new(
+            ReaderMaybeGzip::GZIP(MultiGzDecoder::new(reopen))
+        )), true))
+    } else {
+        Ok((fastq::Reader::from_bufread(BufReader::new(
+            ReaderMaybeGzip::UNCOMPRESSED(reopen)
+        )), true))
+    }
+}
 
 fn main() {
     let cmd = clap::command!("grebe")
@@ -69,15 +106,27 @@ fn main() {
 
     let args = cmd.get_matches();
 
-    let reader_fwr = match fastq::Reader::from_file(args.get_one::<PathBuf>("in-forward").unwrap()) {
-        Ok(result) => result,
+    let in_forward = args.get_one::<PathBuf>("in-forward").unwrap();
+    let reader_fwr = match reader_maybe_gzip(in_forward) {
+        Ok((result, was_compressed)) => {
+            if was_compressed {
+                eprintln!("info: parsing {} as a gzip", in_forward.display())
+            }
+            result
+        }
         Err(_) => {
             eprintln!("couldn't open input forward .fastq");
             exit(1);
         }
     };
-    let reader_rev = match fastq::Reader::from_file(args.get_one::<PathBuf>("in-reverse").unwrap()) {
-        Ok(result) => result,
+    let in_reverse = args.get_one::<PathBuf>("in-reverse").unwrap();
+    let reader_rev = match reader_maybe_gzip(in_reverse) {
+        Ok((result, was_compressed)) => {
+            if was_compressed {
+                eprintln!("info: parsing {} as a gzip", in_reverse.display())
+            }
+            result
+        }
         Err(_) => {
             eprintln!("couldn't open input reverse .fastq");
             exit(1);
@@ -221,6 +270,6 @@ fn main() {
     // TODO: stop assuming forward and reverse reads appear in the proper order
     // TODO: verbose logging (masked reads, etc.)
     // TODO: exit codes
-    // TODO: transparently handle .f[ast]q.gz[ip]
+    // TODO: support .f[ast]q.gz[ip] output
     // TODO: do things on quality scores
 }
