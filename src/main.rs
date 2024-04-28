@@ -29,8 +29,7 @@ impl Read for ReaderMaybeGzip {
     }
 }
 
-fn reader_maybe_gzip(path_buf: &PathBuf)
-                     -> Result<(fastq::Reader<BufReader<ReaderMaybeGzip>>, bool), io::Error> {
+fn reader_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Reader<BufReader<ReaderMaybeGzip>>, bool), io::Error> {
     let mut file = File::open(path_buf)?;
     let mut magic = [0; 2];
     file.read(&mut magic[..])?;
@@ -38,13 +37,9 @@ fn reader_maybe_gzip(path_buf: &PathBuf)
     let reopen = BufReader::new(File::open(path_buf)?);
 
     if magic.eq(&[0x1f, 0x8b]) {
-        Ok((fastq::Reader::from_bufread(BufReader::new(
-            ReaderMaybeGzip::GZIP(MultiGzDecoder::new(reopen))
-        )), true))
+        Ok((fastq::Reader::from_bufread(BufReader::new(ReaderMaybeGzip::GZIP(MultiGzDecoder::new(reopen)))), true))
     } else {
-        Ok((fastq::Reader::from_bufread(BufReader::new(
-            ReaderMaybeGzip::UNCOMPRESSED(reopen)
-        )), true))
+        Ok((fastq::Reader::from_bufread(BufReader::new(ReaderMaybeGzip::UNCOMPRESSED(reopen))), true))
     }
 }
 
@@ -69,9 +64,9 @@ fn main() {
             .value_parser(0..=15)
             .required(false)
             .default_value("0"))
-        .arg(clap::arg!(-'l' <"levenshtein radius"> "(0 to disable) bin UMIs together if at most \
-        this Levenshtein distance apart (useful for small libraries to reduce error rates, but \
-        incurs time penalty quadratic in number of reads)")
+        .arg(clap::arg!(-'l' <"levenshtein radius"> "(0 to disable) bin UMIs together if at most this Levenshtein \
+        distance apart (useful for small libraries to reduce error rates, but incurs time penalty quadratic in number \
+        of reads)")
             .id("levenshtein-radius")
             .alias("levenshtein")
             .alias("levenshtein-radius")
@@ -79,14 +74,13 @@ fn main() {
             .value_parser(0..=15)
             .required(false)
             .default_value("0"))
-        .arg(clap::arg!(--"proactive-levenshtein" <"force-mode"> "(for advanced users) force \
-        guess-and-check approach to levenshtein distance (default is true if -l is 1 or 2, false \
-        otherwise)")
+        .arg(clap::arg!(--"proactive-levenshtein" <"force-mode"> "(for advanced users) force guess-and-check approach \
+        to levenshtein distance (default is true if -l is 1 or 2, false otherwise)")
             .alias("pl")
             .value_parser(clap::value_parser!(bool))
             .required(false))
-        .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs, \
-        including any UMI stripping; reads of insufficient length are dropped")
+        .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs, including any UMI \
+        stripping; reads of insufficient length are dropped")
             .alias("--start-index")
             .value_parser(0..=600)
             .required(false)
@@ -111,9 +105,7 @@ fn main() {
     let in_forward = args.get_one::<PathBuf>("in-forward").unwrap();
     let reader_fwr = match reader_maybe_gzip(in_forward) {
         Ok((result, was_compressed)) => {
-            if was_compressed {
-                eprintln!("info: parsing {} as a gzip", in_forward.display())
-            }
+            if was_compressed { eprintln!("info: parsing {} as a gzip", in_forward.display()) }
             result
         }
         Err(_) => {
@@ -124,9 +116,7 @@ fn main() {
     let in_reverse = args.get_one::<PathBuf>("in-reverse").unwrap();
     let reader_rev = match reader_maybe_gzip(in_reverse) {
         Ok((result, was_compressed)) => {
-            if was_compressed {
-                eprintln!("info: parsing {} as a gzip", in_reverse.display())
-            }
+            if was_compressed { eprintln!("info: parsing {} as a gzip", in_reverse.display()) }
             result
         }
         Err(_) => {
