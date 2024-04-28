@@ -8,8 +8,8 @@ use std::process::exit;
 
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
+use clap::{ArgGroup, ValueHint};
 use clap::parser::ValueSource;
-use clap::ValueHint;
 use editdistancek::edit_distance_bounded;
 use flate2::bufread::MultiGzDecoder;
 use itertools::Itertools;
@@ -91,6 +91,8 @@ fn main() {
             .value_parser(0..=600)
             .required(false)
             .default_value("0"))
+        .group(ArgGroup::new("left-slice")
+            .arg("start-at"))
         .arg(clap::arg!(<"out-forward"> "where to place processed forward reads")  // TODO: output more sequence formats
             .value_name("output forward .fastq")
             .value_parser(clap::value_parser!(PathBuf))
