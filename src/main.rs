@@ -79,8 +79,8 @@ fn main() {
             .alias("pl")
             .value_parser(clap::value_parser!(bool))
             .required(false))
-        .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs, including any UMI \
-        stripping; reads of insufficient length are dropped")
+        .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs (index includes any UMI \
+        stripping); reads which become empty are dropped")
             .alias("--start-index")
             .value_parser(0..=600)
             .required(false)
@@ -145,7 +145,7 @@ fn main() {
 
     let start_index_arg = *args.get_one::<i64>("start-at").unwrap();
     let start_index_rev = start_index_arg;
-    let start_index_fwr = max(start_index_rev, umi_length);
+    let start_index_fwr = max(start_index_arg, umi_length);
 
     let levenshtein_max = min(*args.get_one::<i64>("levenshtein-radius").unwrap(), umi_length);
     if levenshtein_max >= umi_length && args.value_source("levenshtein-radius") == Some(ValueSource::CommandLine) {
