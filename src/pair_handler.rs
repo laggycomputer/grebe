@@ -84,8 +84,8 @@ pub(crate) struct PairHandler {
     pub(crate) record_writers: (fastq::Writer<WriterMaybeGzip>, fastq::Writer<WriterMaybeGzip>),
     pub(crate) collision_resolution_method: UMICollisionResolutionMethod,
     pub(crate) umi_bins: HashMap<Vec<u8>, HashSet<FastqPair>>,
-    total_records: usize,
-    good_records: usize,
+    pub(crate) total_records: usize,
+    pub(crate) good_records: usize,
 }
 
 impl Default for PairHandler {
@@ -124,15 +124,18 @@ impl PairHandler {
         &mut self, umi: &Vec<u8>, new: &FastqPair) {
         if !self.umi_bins.contains_key(umi) {
             let mut set = HashSet::<FastqPair>::new();
+            // TODO: immediately save for --crm none, too
             if self.collision_resolution_method == UMICollisionResolutionMethod::KeepFirst {
                 // write the record immediately; save memory
                 self.write_pair(new.clone());
                 // save an empty set so we don't come here again
                 self.umi_bins.insert(umi.clone(), set);
+                self.good_records += 1;
                 return;
             } else {
                 // otherwise, we need to save this
                 set.insert(new.clone());
+                self.good_records += 1;
             }
             self.umi_bins.insert(umi.clone(), set);
             return;

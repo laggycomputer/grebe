@@ -176,24 +176,21 @@ fn main() {
         None => levenshtein_max <= 2
     };
 
-    // TODO: move all state to pair_handler where possible, will fix good_record count
-    let mut total_records = 0;
-    let mut good_records = 0;
     let pairs = record_readers.0.records().zip(record_readers.1.records());
     'pairs: for (rec_fwr, rec_rev) in pairs {
-        total_records += 1;
+        pair_handler.total_records += 1;
 
         let rec_fwr = match rec_fwr {
             Ok(result) => result,
             Err(_) => {
-                eprintln!("forward record {total_records} was invalid");
+                eprintln!("forward record {} was invalid", pair_handler.total_records);
                 exit(1);
             }
         };
         let rec_rev = match rec_rev {
             Ok(result) => result,
             Err(_) => {
-                eprintln!("reverse record {total_records} was invalid");
+                eprintln!("reverse record {} was invalid", pair_handler.total_records);
                 exit(1);
             }
         };
@@ -252,12 +249,11 @@ fn main() {
                 }
             }
         }
-
-        good_records += 1;
     }
 
-    println!("filtered {} down to {}; writing to disk...", pluralize("pair", total_records, true),
-             pluralize("pair", good_records, true));
+    println!("filtered {} down to {}; writing to disk...",
+             pluralize("pair", pair_handler.total_records as isize, true),
+             pluralize("pair", pair_handler.good_records as isize, true));
 
     pair_handler.save_all();
     // TODO: count records before starting and give progress indication
