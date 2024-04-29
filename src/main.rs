@@ -151,7 +151,7 @@ fn main() {
     let mut pair_handler = PairHandler {
         record_writers,
         collision_resolution_method,
-        umi_bins: HashMap::new(),
+        ..Default::default()
     };
 
     let start_index_arg = *args.get_one::<i64>("start-at").unwrap();

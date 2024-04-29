@@ -10,6 +10,7 @@ use flate2::write::GzEncoder;
 pub(crate) enum WriterMaybeGzip {
     GZIP(GzEncoder<File>),
     UNCOMPRESSED(File),
+    NULL(io::Sink),
 }
 
 impl Write for WriterMaybeGzip {
@@ -17,6 +18,7 @@ impl Write for WriterMaybeGzip {
         match self {
             WriterMaybeGzip::GZIP(backer) => backer.write(buf),
             WriterMaybeGzip::UNCOMPRESSED(backer) => backer.write(buf),
+            WriterMaybeGzip::NULL(backer) => backer.write(buf),
         }
     }
 
@@ -24,6 +26,7 @@ impl Write for WriterMaybeGzip {
         match self {
             WriterMaybeGzip::GZIP(backer) => backer.flush(),
             WriterMaybeGzip::UNCOMPRESSED(backer) => backer.flush(),
+            WriterMaybeGzip::NULL(backer) => backer.flush(),
         }
     }
 }

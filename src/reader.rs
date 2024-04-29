@@ -9,13 +9,15 @@ use flate2::bufread::MultiGzDecoder;
 pub(crate) enum ReaderMaybeGzip {
     GZIP(MultiGzDecoder<BufReader<File>>),
     UNCOMPRESSED(BufReader<File>),
+    NULL(io::Empty),
 }
 
 impl Read for ReaderMaybeGzip {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self {
             ReaderMaybeGzip::GZIP(backer) => backer.read(buf),
-            ReaderMaybeGzip::UNCOMPRESSED(backer) => backer.read(buf)
+            ReaderMaybeGzip::UNCOMPRESSED(backer) => backer.read(buf),
+            ReaderMaybeGzip::NULL(backer) => backer.read(buf),
         }
     }
 }

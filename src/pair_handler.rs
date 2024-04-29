@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
+use std::io;
+use std::io::BufWriter;
 
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
@@ -82,6 +84,22 @@ pub(crate) struct PairHandler {
     pub(crate) record_writers: (fastq::Writer<WriterMaybeGzip>, fastq::Writer<WriterMaybeGzip>),
     pub(crate) collision_resolution_method: UMICollisionResolutionMethod,
     pub(crate) umi_bins: HashMap<Vec<u8>, HashSet<FastqPair>>,
+    total_records: usize,
+    good_records: usize,
+}
+
+impl Default for PairHandler {
+    fn default() -> Self {
+        PairHandler {
+            record_writers: (
+                fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::sink()))),
+                fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::sink())))),
+            collision_resolution_method: UMICollisionResolutionMethod::KeepFirst,
+            umi_bins: Default::default(),
+            total_records: 0,
+            good_records: 0,
+        }
+    }
 }
 
 impl PairHandler {
