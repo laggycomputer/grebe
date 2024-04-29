@@ -79,8 +79,8 @@ fn main() {
             .alias("pl")
             .value_parser(clap::value_parser!(bool))
             .required(false))
-        .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs (index includes any UMI \
-        stripping); reads which become empty are dropped")
+        .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs (but process UMIs even if \
+        they would be clipped); reads which become empty are dropped")
             .alias("--start-index")
             .value_parser(0..=600)
             .required(false)
