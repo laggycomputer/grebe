@@ -125,18 +125,18 @@ impl PairHandler {
         if !self.umi_bins.contains_key(umi) {
             let mut set = HashSet::<FastqPair>::new();
             // TODO: immediately save for --crm none, too
-            if self.collision_resolution_method == UMICollisionResolutionMethod::KeepFirst {
-                // write the record immediately; save memory
-                self.write_pair(new.clone());
-                // save an empty set so we don't come here again
-                self.umi_bins.insert(umi.clone(), set);
-                self.good_records += 1;
-                return;
-            } else {
-                // otherwise, we need to save this
-                set.insert(new.clone());
-                self.good_records += 1;
+            match self.collision_resolution_method {
+                UMICollisionResolutionMethod::KeepFirst => {
+                    // write the record immediately; save memory
+                    self.write_pair(new.clone());
+                    // save an empty set so we don't come here again
+                }
+                _ => {
+                    // otherwise, we need to save this
+                    set.insert(new.clone());
+                }
             }
+            self.good_records += 1;
             self.umi_bins.insert(umi.clone(), set);
             return;
         }
