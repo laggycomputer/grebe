@@ -224,7 +224,7 @@ fn main() {
         args.get_one::<PathBuf>("in-forward").unwrap(),
         args.get_one::<PathBuf>("in-reverse").unwrap()
     );
-    let records_in = (
+    let record_readers = (
         match reader_maybe_gzip(input_paths.0) {
             Ok((result, was_compressed)) => {
                 if was_compressed { eprintln!("info: parsing {} as a gzip", input_paths.0.display()) }
@@ -292,7 +292,7 @@ fn main() {
 
     let mut total_records = 0;
     let mut good_records = 0;
-    let pairs = records_in.0.records().zip(records_in.1.records());
+    let pairs = record_readers.0.records().zip(record_readers.1.records());
     'pairs: for (rec_fwr, rec_rev) in pairs {
         total_records += 1;
 
