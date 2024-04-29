@@ -1,4 +1,3 @@
-use crate::reader::reader_maybe_gzip;
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -12,6 +11,7 @@ use itertools::Itertools;
 use pluralizer::pluralize;
 
 use crate::pair_handler::{PairHandler, UMICollisionResolutionMethod};
+use crate::reader::reader_maybe_gzip;
 
 mod pair_handler;
 mod reader;
