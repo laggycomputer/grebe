@@ -133,13 +133,13 @@ fn main() {
     );
 
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
-    let mut umi_bins = HashMap::new();
 
     let collision_resolution_method = args.get_one::<UMICollisionResolutionMethod>("collision-resolution-mode")
         .unwrap().to_owned();
     let mut pair_handler = PairHandler {
         record_writers,
-        collision_resolution_method: collision_resolution_method.clone(),
+        collision_resolution_method,
+        umi_bins: HashMap::new()
     };
 
     let start_index_arg = *args.get_one::<i64>("start-at").unwrap();
@@ -199,7 +199,7 @@ fn main() {
         if umi_length > 0 {
             let umi: Vec<u8> = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
-                pair_handler.handle_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev));
+                pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev));
             } else {
                 if proactive_levenshtein {
                     // instead of checking the distance to elements of the set of known UMIs,
@@ -219,25 +219,25 @@ fn main() {
                                 umi_modified[*index as usize] = new_value as u8;
                             }
                             // if our result is already known, bail out
-                            if umi_bins.contains_key(&umi_modified) {
-                                pair_handler.handle_pair(&mut umi_bins, &umi_modified, &(rec_fwr, rec_rev));
+                            if pair_handler.umi_bins.contains_key(&umi_modified) {
+                                pair_handler.handle_pair(&umi_modified, &(rec_fwr, rec_rev));
                                 continue 'pairs;
                             }
                         }
                     }
 
                     // no proposed alternative was satisfactory; we have a new UMI
-                    pair_handler.handle_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev));
+                    pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev));
                 } else {
-                    if umi_bins.contains_key(&umi) {
-                        pair_handler.handle_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev));
+                    if pair_handler.umi_bins.contains_key(&umi) {
+                        pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev));
                     } else {
-                        match find_within_radius(&umi_bins, &umi, levenshtein_max as usize) {
+                        match find_within_radius(&pair_handler.umi_bins, &umi, levenshtein_max as usize) {
                             None => {
-                                pair_handler.handle_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev))
+                                pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev))
                             }
                             Some(found) => {
-                                pair_handler.handle_pair(&mut umi_bins, &found, &(rec_fwr, rec_rev))
+                                pair_handler.handle_pair(&found, &(rec_fwr, rec_rev))
                             }
                         }
                     }
@@ -251,7 +251,7 @@ fn main() {
     println!("filtered {} down to {}; writing to disk...", pluralize("pair", total_records, true),
              pluralize("pair", good_records, true));
 
-    for (umi, pairs) in umi_bins.into_iter() {
+    for (umi, pairs) in pair_handler.umi_bins.into_iter() {
         let to_write = match collision_resolution_method {
             UMICollisionResolutionMethod::KeepFirst => {
                 // these records are already on disk

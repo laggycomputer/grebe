@@ -81,6 +81,7 @@ impl ValueEnum for UMICollisionResolutionMethod {
 pub(crate) struct PairHandler {
     pub(crate) record_writers: (fastq::Writer<File>, fastq::Writer<File>),
     pub(crate) collision_resolution_method: UMICollisionResolutionMethod,
+    pub(crate) umi_bins: HashMap<Vec<u8>, HashSet<FastqPair>>,
 }
 
 impl PairHandler {
@@ -102,25 +103,24 @@ impl PairHandler {
     }
 
     pub(crate) fn handle_pair(
-        &mut self, hash_map: &mut HashMap<Vec<u8>,
-            HashSet<FastqPair>>, umi: &Vec<u8>, new: &FastqPair) {
-        if !hash_map.contains_key(umi) {
+        &mut self, umi: &Vec<u8>, new: &FastqPair) {
+        if !self.umi_bins.contains_key(umi) {
             let mut set = HashSet::<FastqPair>::new();
             if self.collision_resolution_method == UMICollisionResolutionMethod::KeepFirst {
                 // write the record immediately; save memory
                 self.write_pair(new.clone());
                 // save an empty set so we don't come here again
-                hash_map.insert(umi.clone(), set);
+                self.umi_bins.insert(umi.clone(), set);
                 return;
             } else {
                 // otherwise, we need to save this
                 set.insert(new.clone());
             }
-            hash_map.insert(umi.clone(), set);
+            self.umi_bins.insert(umi.clone(), set);
             return;
         }
 
-        let set = hash_map.get_mut(umi).unwrap();
+        let set = self.umi_bins.get_mut(umi).unwrap();
 
         match self.collision_resolution_method {
             UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
