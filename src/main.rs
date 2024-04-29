@@ -12,7 +12,6 @@ use pluralizer::pluralize;
 
 use crate::pair_handler::{PairHandler, UMICollisionResolutionMethod};
 use crate::reader::make_reader_pair;
-use crate::writer::writer_maybe_gzip;
 
 mod pair_handler;
 mod reader;
@@ -103,28 +102,7 @@ fn main() {
         args.get_one::<PathBuf>("out-forward").unwrap(),
         args.get_one::<PathBuf>("out-reverse").unwrap()
     );
-    let record_writers = (
-        match writer_maybe_gzip(output_paths.0) {
-            Ok((result, was_compressed)) => {
-                if was_compressed { eprintln!("info: writing {} as a gzip", output_paths.0.display()) }
-                result
-            }
-            Err(_) => {
-                eprintln!("couldn't open output forward .fastq; if it exists, remove it");
-                exit(1);
-            }
-        },
-        match writer_maybe_gzip(output_paths.1) {
-            Ok((result, was_compressed)) => {
-                if was_compressed { eprintln!("info: writing {} as a gzip", output_paths.1.display()) }
-                result
-            }
-            Err(_) => {
-                eprintln!("couldn't open output reverse .fastq; if it exists, remove it");
-                exit(1);
-            }
-        }
-    );
+    let record_writers = writer::make_writer_pair(output_paths);
 
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
 

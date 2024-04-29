@@ -37,28 +37,21 @@ pub(crate) fn reader_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Reader<Buf
     }
 }
 
-pub fn make_reader_pair(input_paths: (&PathBuf, &PathBuf), silent: bool)
-                        -> (fastq::Reader<BufReader<ReaderMaybeGzip>>, fastq::Reader<BufReader<ReaderMaybeGzip>>) {
-    (
-        match reader_maybe_gzip(input_paths.0) {
-            Ok((result, was_compressed)) => {
-                if was_compressed && !silent { eprintln!("info: parsing {} as a gzip", input_paths.0.display()) }
-                result
-            }
-            Err(_) => {
-                eprintln!("couldn't open input forward .fastq");
-                exit(1);
-            }
-        },
-        match reader_maybe_gzip(input_paths.1) {
-            Ok((result, was_compressed)) => {
-                if was_compressed && !silent { eprintln!("info: parsing {} as a gzip", input_paths.1.display()) }
-                result
-            }
-            Err(_) => {
-                eprintln!("couldn't open input reverse .fastq");
-                exit(1);
-            }
+fn reader_from_path(path_buf: &PathBuf, silent: bool) -> fastq::Reader<BufReader<ReaderMaybeGzip>> {
+    match reader_maybe_gzip(path_buf) {
+        Ok((result, was_compressed)) => {
+            if was_compressed && !silent { eprintln!("info: parsing {} as a gzip", path_buf.display()) }
+            result
         }
-    )
+        Err(_) => {
+            eprintln!("couldn't open {} for reading", path_buf.display());
+            exit(1);
+        }
+    }
+}
+
+pub(crate) fn make_reader_pair(input_paths: (&PathBuf, &PathBuf), silent: bool)
+                               -> (fastq::Reader<BufReader<ReaderMaybeGzip>>,
+                                   fastq::Reader<BufReader<ReaderMaybeGzip>>) {
+    (reader_from_path(input_paths.0, silent), reader_from_path(input_paths.1, silent))
 }
