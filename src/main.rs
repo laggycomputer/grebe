@@ -11,7 +11,7 @@ use itertools::Itertools;
 use pluralizer::pluralize;
 
 use crate::pair_handler::{PairHandler, UMICollisionResolutionMethod};
-use crate::reader::reader_maybe_gzip;
+use crate::reader::make_reader_pair;
 use crate::writer::writer_maybe_gzip;
 
 mod pair_handler;
@@ -94,28 +94,10 @@ fn main() {
         args.get_one::<PathBuf>("in-forward").unwrap(),
         args.get_one::<PathBuf>("in-reverse").unwrap()
     );
-    let record_readers = (
-        match reader_maybe_gzip(input_paths.0) {
-            Ok((result, was_compressed)) => {
-                if was_compressed { eprintln!("info: parsing {} as a gzip", input_paths.0.display()) }
-                result
-            }
-            Err(_) => {
-                eprintln!("couldn't open input forward .fastq");
-                exit(1);
-            }
-        },
-        match reader_maybe_gzip(input_paths.1) {
-            Ok((result, was_compressed)) => {
-                if was_compressed { eprintln!("info: parsing {} as a gzip", input_paths.1.display()) }
-                result
-            }
-            Err(_) => {
-                eprintln!("couldn't open input reverse .fastq");
-                exit(1);
-            }
-        }
-    );
+    let record_readers = make_reader_pair(input_paths, true);
+    // TODO: reverse reads here too
+    let total_records = record_readers.0.records().count();
+    let record_readers = make_reader_pair(input_paths, true);
 
     let output_paths = (
         args.get_one::<PathBuf>("out-forward").unwrap(),
@@ -151,6 +133,7 @@ fn main() {
     let mut pair_handler = PairHandler {
         record_writers,
         collision_resolution_method,
+        total_records,
         ..Default::default()
     };
 
@@ -178,8 +161,6 @@ fn main() {
 
     let pairs = record_readers.0.records().zip(record_readers.1.records());
     'pairs: for (rec_fwr, rec_rev) in pairs {
-        pair_handler.total_records += 1;
-
         let rec_fwr = match rec_fwr {
             Ok(result) => result,
             Err(_) => {

@@ -2,8 +2,10 @@ use std::fs::File;
 use std::io;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
+use std::process::exit;
 
 use bio::io::fastq;
+use bio::io::fastq::Reader;
 use flate2::bufread::MultiGzDecoder;
 
 pub(crate) enum ReaderMaybeGzip {
@@ -34,4 +36,30 @@ pub(crate) fn reader_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Reader<Buf
     } else {
         Ok((fastq::Reader::from_bufread(BufReader::new(ReaderMaybeGzip::UNCOMPRESSED(reopen))), false))
     }
+}
+
+pub fn make_reader_pair(input_paths: (&PathBuf, &PathBuf), silent: bool)
+                        -> (Reader<BufReader<ReaderMaybeGzip>>, Reader<BufReader<ReaderMaybeGzip>>) {
+    (
+        match reader_maybe_gzip(input_paths.0) {
+            Ok((result, was_compressed)) => {
+                if was_compressed && !silent { eprintln!("info: parsing {} as a gzip", input_paths.0.display()) }
+                result
+            }
+            Err(_) => {
+                eprintln!("couldn't open input forward .fastq");
+                exit(1);
+            }
+        },
+        match reader_maybe_gzip(input_paths.1) {
+            Ok((result, was_compressed)) => {
+                if was_compressed && !silent { eprintln!("info: parsing {} as a gzip", input_paths.1.display()) }
+                result
+            }
+            Err(_) => {
+                eprintln!("couldn't open input reverse .fastq");
+                exit(1);
+            }
+        }
+    )
 }
