@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::cmp::{max, min, Ordering};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io;
@@ -17,8 +17,6 @@ use itertools::Itertools;
 use pluralizer::pluralize;
 use strum::VariantArray;
 use strum_macros::VariantArray;
-
-use crate::UMICollisionResolutionMethod::{KeepFirst, KeepLongestExtend, KeepLongestLeft, QualityVote};
 
 enum ReaderMaybeGzip {
     GZIP(MultiGzDecoder<BufReader<File>>),
@@ -59,6 +57,61 @@ enum UMICollisionResolutionMethod {
     QualityVote,
 }
 
+impl UMICollisionResolutionMethod {
+    fn _compare_for_extension(&self, old: &fastq::Record, new: &fastq::Record) -> fastq::Record {
+        match self {
+            UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
+            UMICollisionResolutionMethod::KeepLongestExtend => {
+                match old.seq().len().cmp(&new.seq().len()) {
+                    Ordering::Less => match self {
+                        // if keeping longest with extension, need to check content
+                        UMICollisionResolutionMethod::KeepLongestExtend => {
+                            if new.seq().starts_with(old.seq()) { (*new).clone() } else { (*old).clone() }
+                        }
+                        // if simply keeping longest, content does not matter
+                        _ => (*new).clone()
+                    },
+                    Ordering::Equal => match &self {
+                        // maybe allow user to choose here for KeepLongestExtend
+                        UMICollisionResolutionMethod::KeepLongestLeft |
+                        UMICollisionResolutionMethod::KeepLongestExtend => (*old).clone(),
+                        UMICollisionResolutionMethod::KeepLongestRight => (*new).clone(),
+                        _ => unreachable!()
+                    },
+                    Ordering::Greater => (*old).clone()
+                }
+            }
+            _ => unimplemented!()
+        }
+    }
+
+    /// assumes at least one pair is already present in `set`
+    fn insert_pair(
+        &self, set: &mut HashSet::<(fastq::Record, fastq::Record)>, new: &(fastq::Record, fastq::Record)) {
+        match self {
+            UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
+                // just handle it later somehow
+                set.insert(new.clone());
+            }
+            UMICollisionResolutionMethod::KeepFirst => {}  // drop the new record
+            UMICollisionResolutionMethod::KeepLast => {
+                set.clear();
+                set.insert(new.clone());
+            }
+            UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
+            UMICollisionResolutionMethod::KeepLongestExtend => {
+                let old = set.iter().next().unwrap();
+
+                set.clear();
+                set.insert((
+                    self._compare_for_extension(&(*old).0, &(*new).0),
+                    self._compare_for_extension(&(*old).1, &(*new).1)
+                ));
+            }
+        }
+    }
+}
+
 impl ValueEnum for UMICollisionResolutionMethod {
     fn value_variants<'a>() -> &'a [Self] {
         &Self::VARIANTS
@@ -69,17 +122,17 @@ impl ValueEnum for UMICollisionResolutionMethod {
         Some(match self {
             Self::None => PossibleValue::new("none")
                 .help("keep duplicates, prepend their assigned UMI to their sequence names"),
-            KeepFirst => PossibleValue::new("keep-first")
+            UMICollisionResolutionMethod::KeepFirst => PossibleValue::new("keep-first")
                 .help("keep the first sequence matched to this UMI, ignore any sequences that follow"),
             UMICollisionResolutionMethod::KeepLast => PossibleValue::new("keep-last")
                 .help("keep the last sequence matched, ignore any sequences that come before"),
-            KeepLongestLeft => PossibleValue::new("keep-longest-left")
+            UMICollisionResolutionMethod::KeepLongestLeft => PossibleValue::new("keep-longest-left")
                 .help("keep the longest sequence matched, favor the earlier sequence when tied"),
             UMICollisionResolutionMethod::KeepLongestRight => PossibleValue::new("keep-longest-right")
                 .help("keep the longest sequence matched, favor the later sequence when tied"),
-            KeepLongestExtend => PossibleValue::new("keep-longest-extend")
+            UMICollisionResolutionMethod::KeepLongestExtend => PossibleValue::new("keep-longest-extend")
                 .help("keep the longest sequence, overwrite it if a longer, later read agrees completely"),
-            QualityVote => PossibleValue::new("quality-vote")
+            UMICollisionResolutionMethod::QualityVote => PossibleValue::new("quality-vote")
                 .help("create one final sequence by combining base calls and qualities from all matched reads"),
         })
     }
@@ -106,6 +159,13 @@ fn main() {
             .value_parser(0..=15)
             .required(false)
             .default_value("0"))
+        .arg(clap::arg!(--"collision-resolution-mode" <"mode"> "choose how to resolve UMI collisions")
+            .visible_alias("collision-resolution-method")
+            .visible_alias("conflict-resolution-mode")
+            .visible_alias("conflict-resolution-method")
+            .visible_alias("crm")
+            .value_parser(clap::value_parser!(UMICollisionResolutionMethod))
+            .default_value("keep-first"))
         .arg(clap::arg!(-'l' <"levenshtein radius"> "(0 to disable) bin UMIs together if at most this Levenshtein \
         distance apart (useful for small libraries to reduce error rates, but very slow on genomic-scale data)")
             .id("levenshtein-radius")
@@ -120,13 +180,6 @@ fn main() {
             .visible_alias("pl")
             .value_parser(clap::value_parser!(bool))
             .required(false))
-        .arg(clap::arg!(--"collision-resolution-method" <"mode"> "choose how to resolve UMI collisions")
-            .visible_alias("collision-resolution-mode")
-            .visible_alias("conflict-resolution-method")
-            .visible_alias("conflict-resolution-mode")
-            .visible_alias("crm")
-            .value_parser(clap::value_parser!(UMICollisionResolutionMethod))
-            .default_value("keep-first"))
         .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs (but process UMIs even if \
         they would be clipped); reads which become empty are dropped")
             .visible_alias("--start-index")
@@ -191,6 +244,9 @@ fn main() {
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
     let mut umi_bins = HashMap::new();
 
+    let conflict_resolution_method = args.get_one::<UMICollisionResolutionMethod>("collision-resolution-method")
+        .unwrap();
+
     let start_index_arg = *args.get_one::<i64>("start-at").unwrap();
     let start_index_rev = start_index_arg;
     let start_index_fwr = max(start_index_arg, umi_length);
@@ -247,7 +303,8 @@ fn main() {
             let umi: Vec<u8> = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
                 if umi_bins.contains_key(&umi) {
-                    continue;
+                    conflict_resolution_method.insert_pair(&mut umi_bins.get(&umi).unwrap(), &(rec_fwr, rec_rev));
+                    continue 'pairs;
                 }
 
                 let mut to_insert = HashSet::new();
@@ -273,6 +330,8 @@ fn main() {
                             }
                             // if our result is already known, bail out
                             if umi_bins.contains_key(&umi_modified) {
+                                conflict_resolution_method.insert_pair(&mut umi_bins.get(&umi).unwrap(),
+                                                                       &(rec_fwr, rec_rev));
                                 continue 'pairs;
                             }
                         }
@@ -285,7 +344,8 @@ fn main() {
                             levenshtein_max as usize,
                         ).is_some()
                     ) {
-                        continue;
+                        conflict_resolution_method.insert_pair(&mut umi_bins.get(&umi).unwrap(), &(rec_fwr, rec_rev));
+                        continue 'pairs;
                     }
                 }
                 let mut to_insert = HashSet::new();
