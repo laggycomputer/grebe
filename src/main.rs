@@ -370,8 +370,19 @@ fn main() {
         }
 
         good_records += 1;
+    }
 
-        // TODO: don't write just yet, finalize conflict resolution first
+    println!("filtered {} down to {}; writing to disk...", pluralize("pair", total_records, true),
+             pluralize("pair", good_records, true));
+
+    for (umi, pairs) in umi_bins.into_iter() {
+        let selected_pair = match conflict_resolution_method {
+            UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
+                todo!()
+            }
+            _ => pairs.into_iter().next().unwrap()
+        };
+
         // writer_fwr.write(
         //     std::str::from_utf8(rec_fwr.name()).unwrap(),
         //     Option::from(rec_fwr.id()),
@@ -388,7 +399,6 @@ fn main() {
         //     .expect("couldn't write out a reverse record");
     }
 
-    println!("filtered {} down to {}", pluralize("pair", total_records, true), pluralize("pair", good_records, true));
     // TODO: count records before starting and give progress indication
     // TODO: stop assuming forward and reverse reads appear in the proper order
     // TODO: verbose logging (masked reads, etc.)
