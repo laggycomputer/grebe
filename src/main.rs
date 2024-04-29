@@ -220,8 +220,12 @@ fn main() {
 
     let args = cmd.get_matches();
 
+    let input_paths = (
+        args.get_one::<PathBuf>("in-forward").unwrap(),
+        args.get_one::<PathBuf>("in-reverse").unwrap()
+    );
     let record_readers = (
-        match reader_maybe_gzip(args.get_one::<PathBuf>("in-forward").unwrap()) {
+        match reader_maybe_gzip(input_paths.0) {
             Ok((result, was_compressed)) => {
                 if was_compressed { eprintln!("info: parsing {} as a gzip", input_paths.0.display()) }
                 result
@@ -231,7 +235,7 @@ fn main() {
                 exit(1);
             }
         },
-        match reader_maybe_gzip(args.get_one::<PathBuf>("in-reverse").unwrap()) {
+        match reader_maybe_gzip(input_paths.1) {
             Ok((result, was_compressed)) => {
                 if was_compressed { eprintln!("info: parsing {} as a gzip", input_paths.1.display()) }
                 result
@@ -376,11 +380,17 @@ fn main() {
              pluralize("pair", good_records, true));
 
     for (umi, pairs) in umi_bins.into_iter() {
-        let selected_pair = match conflict_resolution_method {
-            UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
+        let to_write = match conflict_resolution_method {
+            UMICollisionResolutionMethod::None => {
                 todo!()
             }
-            _ => pairs.into_iter().next().unwrap()
+            UMICollisionResolutionMethod::QualityVote => {
+                let qualities = pairs
+            }
+            _ => {
+                let mut should_write = Vec::new();
+                should_write.push(should_write.into_iter().next().unwrap());
+            }
         };
 
         // writer_fwr.write(
