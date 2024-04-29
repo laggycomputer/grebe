@@ -245,12 +245,8 @@ fn main() {
                         pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev));
                     } else {
                         match find_within_radius(&pair_handler.umi_bins, &umi, levenshtein_max as usize) {
-                            None => {
-                                pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev))
-                            }
-                            Some(found) => {
-                                pair_handler.handle_pair(&found, &(rec_fwr, rec_rev))
-                            }
+                            None => pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev)),
+                            Some(found) => pair_handler.handle_pair(&found, &(rec_fwr, rec_rev))
                         }
                     }
                 }
