@@ -33,7 +33,7 @@ pub(crate) fn writer_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Writer<Wri
 
     if match path_buf.extension() {
         None => false,
-        Some(ext) => { ext == "gzip" || ext == "gz" }
+        Some(ext) => ext == "gzip" || ext == "gz"
     } {
         Ok((fastq::Writer::from_bufwriter(BufWriter::new(
             WriterMaybeGzip::GZIP(GzEncoder::new(file, Compression::default())))), true))
