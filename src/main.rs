@@ -48,7 +48,7 @@ fn reader_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Reader<BufReader<Read
     }
 }
 
-#[derive(Clone, VariantArray)]
+#[derive(Clone, PartialEq, VariantArray)]
 enum UMICollisionResolutionMethod {
     None,
     KeepFirst,
@@ -87,11 +87,29 @@ impl UMICollisionResolutionMethod {
         }
     }
 
-    fn insert_pair(
-        &self, hash_map: &mut HashMap<Vec<u8>, HashSet<FastqPair>>, umi: &Vec<u8>, new: &FastqPair) {
+    fn handle_pair(
+        &self, mut record_writers: &mut (fastq::Writer<File>, fastq::Writer<File>), hash_map: &mut HashMap<Vec<u8>, HashSet<FastqPair>>, umi: &Vec<u8>, new: &FastqPair) {
         if !hash_map.contains_key(umi) {
             let mut set = HashSet::<FastqPair>::new();
-            set.insert(new.clone());
+            if *self == UMICollisionResolutionMethod::KeepFirst {
+                // TODO: write the record out and call it a day
+                record_writers.0.write(
+                    std::str::from_utf8(new.0.name()).unwrap(),
+                    Option::from(new.0.id()),
+                    new.0.seq(),
+                    new.0.qual(),
+                )
+                    .expect("couldn't write out a forward record");
+                record_writers.1.write(
+                    std::str::from_utf8(new.1.name()).unwrap(),
+                    Option::from(new.1.id()),
+                    new.1.seq(),
+                    new.1.qual(),
+                ).expect("couldn't write out a reverse record");
+            } else {
+                // if keep first, save on the memory
+                set.insert(new.clone());
+            }
             hash_map.insert(umi.clone(), set);
             return;
         }
@@ -247,7 +265,7 @@ fn main() {
         }
     );
 
-    let record_writers = (
+    let mut record_writers = (
         match fastq::Writer::to_file(args.get_one::<PathBuf>("out-forward").unwrap()) {
             Ok(result) => result,
             Err(_) => {
@@ -326,7 +344,7 @@ fn main() {
         if umi_length > 0 {
             let umi: Vec<u8> = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
-                conflict_resolution_method.insert_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev));
+                conflict_resolution_method.handle_pair(&mut record_writers, &mut umi_bins, &umi, &(rec_fwr, rec_rev));
             } else {
                 if proactive_levenshtein {
                     // instead of checking the distance to elements of the set of known UMIs,
@@ -347,25 +365,25 @@ fn main() {
                             }
                             // if our result is already known, bail out
                             if umi_bins.contains_key(&umi_modified) {
-                                conflict_resolution_method.insert_pair(&mut umi_bins, &umi_modified, &(rec_fwr, rec_rev));
+                                conflict_resolution_method.handle_pair(&mut record_writers, &mut umi_bins, &umi_modified, &(rec_fwr, rec_rev));
                                 continue 'pairs;
                             }
                         }
                     }
 
                     // no proposed alternative was satisfactory; we have a new UMI
-                    conflict_resolution_method.insert_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev));
+                    conflict_resolution_method.handle_pair(&mut record_writers, &mut umi_bins, &umi, &(rec_fwr, rec_rev));
                 } else {
                     if umi_bins.contains_key(&umi) {
-                        conflict_resolution_method.insert_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev));
+                        conflict_resolution_method.handle_pair(&mut record_writers, &mut umi_bins, &umi, &(rec_fwr, rec_rev));
                     } else {
                         match find_within_radius(&umi_bins, &umi, levenshtein_max as usize) {
                             None => {
-                                conflict_resolution_method.insert_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev))
+                                conflict_resolution_method.handle_pair(&mut record_writers, &mut umi_bins, &umi, &(rec_fwr, rec_rev))
                             }
                             Some(found) => {
-                                conflict_resolution_method.insert_pair(
-                                    &mut umi_bins, &found, &(rec_fwr, rec_rev))
+                                conflict_resolution_method.handle_pair(
+                                    &mut record_writers, &mut umi_bins, &found, &(rec_fwr, rec_rev))
                             }
                         }
                     }
@@ -381,15 +399,13 @@ fn main() {
 
     for (umi, pairs) in umi_bins.into_iter() {
         let to_write = match conflict_resolution_method {
-            UMICollisionResolutionMethod::None => {
+            UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
                 todo!()
             }
-            UMICollisionResolutionMethod::QualityVote => {
-                let qualities = pairs
-            }
             _ => {
-                let mut should_write = Vec::new();
-                should_write.push(should_write.into_iter().next().unwrap());
+                let mut should_write: Vec<FastqPair> = Vec::new();
+                should_write.push(pairs.into_iter().next().unwrap());
+                should_write
             }
         };
 
