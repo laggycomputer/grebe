@@ -1,5 +1,5 @@
 use std::cmp::{max, min};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, Read};
@@ -8,12 +8,17 @@ use std::process::exit;
 
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
-use clap::{ArgGroup, ValueHint};
+use clap::{ArgGroup, ValueEnum, ValueHint};
+use clap::builder::PossibleValue;
 use clap::parser::ValueSource;
 use editdistancek::edit_distance_bounded;
 use flate2::bufread::MultiGzDecoder;
 use itertools::Itertools;
 use pluralizer::pluralize;
+use strum::VariantArray;
+use strum_macros::VariantArray;
+
+use crate::UMIResolutionMethod::{KeepFirst, KeepLongestExtend, KeepLongestLeft, QualityVote};
 
 enum ReaderMaybeGzip {
     GZIP(MultiGzDecoder<BufReader<File>>),
@@ -40,6 +45,43 @@ fn reader_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Reader<BufReader<Read
         Ok((fastq::Reader::from_bufread(BufReader::new(ReaderMaybeGzip::GZIP(MultiGzDecoder::new(reopen)))), true))
     } else {
         Ok((fastq::Reader::from_bufread(BufReader::new(ReaderMaybeGzip::UNCOMPRESSED(reopen))), true))
+    }
+}
+
+#[derive(Clone, VariantArray)]
+enum UMIResolutionMethod {
+    None,
+    KeepFirst,
+    KeepLast,
+    KeepLongestLeft,
+    KeepLongestRight,
+    KeepLongestExtend,
+    QualityVote,
+}
+
+impl ValueEnum for UMIResolutionMethod {
+    fn value_variants<'a>() -> &'a [Self] {
+        &Self::VARIANTS
+    }
+
+    // TODO: respect these
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        Some(match self {
+            Self::None => PossibleValue::new("none")
+                .help("keep duplicates, prepend their assigned UMI to their sequence names"),
+            KeepFirst => PossibleValue::new("keep-first")
+                .help("keep the first sequence matched to this UMI, ignore any sequences that follow"),
+            UMIResolutionMethod::KeepLast => PossibleValue::new("keep-last")
+                .help("keep the last sequence matched, ignore any sequences that come before"),
+            KeepLongestLeft => PossibleValue::new("keep-longest-left")
+                .help("keep the longest sequence matched, favor the earlier sequence when tied"),
+            UMIResolutionMethod::KeepLongestRight => PossibleValue::new("keep-longest-right")
+                .help("keep the longest sequence matched, favor the later sequence when tied"),
+            KeepLongestExtend => PossibleValue::new("keep-longest-extend")
+                .help("keep the longest sequence, overwrite it if a longer, later read agrees completely"),
+            QualityVote => PossibleValue::new("quality-vote")
+                .help("create one final sequenced by combining base calls and qualities from all matched reads"),
+        })
     }
 }
 
@@ -78,6 +120,10 @@ fn main() {
             .visible_alias("pl")
             .value_parser(clap::value_parser!(bool))
             .required(false))
+        .arg(clap::arg!(--"resolution-method" <"mode"> "choose how to resolve UMI collisions")
+            .visible_alias("resolution-mode")
+            .visible_alias("rm")
+            .value_parser(clap::value_parser!(UMIResolutionMethod)))
         .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs (but process UMIs even if \
         they would be clipped); reads which become empty are dropped")
             .visible_alias("--start-index")
