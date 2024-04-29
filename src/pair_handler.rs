@@ -11,7 +11,7 @@ use strum_macros::VariantArray;
 
 use crate::FastqPair;
 
-#[derive(Clone, PartialEq, VariantArray)]
+#[derive(Clone, Copy, PartialEq, VariantArray)]
 pub(crate) enum UMICollisionResolutionMethod {
     None,
     KeepFirst,
@@ -144,6 +144,25 @@ impl PairHandler {
                     self.collision_resolution_method._compare_for_extension(&old.1, &new.1)
                 ));
             }
+        }
+    }
+
+    pub(crate) fn save_all(&mut self) {
+        // this clone is a really bad idea
+        for (umi, pairs) in
+        <HashMap<Vec<u8>, HashSet<(fastq::Record, fastq::Record)>> as Clone>::clone(&self.umi_bins).into_iter() {
+            match self.collision_resolution_method {
+                UMICollisionResolutionMethod::KeepFirst => {
+                    // these records are already on disk
+                }
+                UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
+                    todo!()
+                }
+                _ => {
+                    // conflict resolution has already selected a single read
+                    self.write_pair(pairs.iter().next().unwrap().clone());
+                }
+            };
         }
     }
 }

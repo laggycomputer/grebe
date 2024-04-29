@@ -251,27 +251,7 @@ fn main() {
     println!("filtered {} down to {}; writing to disk...", pluralize("pair", total_records, true),
              pluralize("pair", good_records, true));
 
-    for (umi, pairs) in pair_handler.umi_bins.into_iter() {
-        let to_write = match collision_resolution_method {
-            UMICollisionResolutionMethod::KeepFirst => {
-                // these records are already on disk
-                Vec::new()
-            }
-            UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
-                todo!()
-            }
-            _ => {
-                let mut should_write: Vec<FastqPair> = Vec::new();
-                should_write.push(pairs.into_iter().next().unwrap());
-                should_write
-            }
-        };
-
-        for pair in to_write.into_iter() {
-            pair_handler.write_pair(pair);
-        }
-    }
-
+    pair_handler.save_all();
     // TODO: count records before starting and give progress indication
     // TODO: stop assuming forward and reverse reads appear in the proper order
     // TODO: verbose logging (masked reads, etc.)
