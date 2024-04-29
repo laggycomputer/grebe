@@ -6,7 +6,6 @@ use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use std::process::exit;
 
-use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
 use clap::{ArgGroup, ValueEnum, ValueHint};
 use clap::builder::PossibleValue;
@@ -17,6 +16,8 @@ use itertools::Itertools;
 use pluralizer::pluralize;
 use strum::VariantArray;
 use strum_macros::VariantArray;
+
+mod one_pair_handler;
 
 type FastqPair = (fastq::Record, fastq::Record);
 
@@ -88,27 +89,18 @@ impl UMICollisionResolutionMethod {
     }
 
     fn handle_pair(
-        &self, mut record_writers: &mut (fastq::Writer<File>, fastq::Writer<File>), hash_map: &mut HashMap<Vec<u8>,
+        &self, pair_handler: &mut one_pair_handler::OnePairHandler, hash_map: &mut HashMap<Vec<u8>,
             HashSet<FastqPair>>, umi: &Vec<u8>, new: &FastqPair) {
         if !hash_map.contains_key(umi) {
             let mut set = HashSet::<FastqPair>::new();
             if *self == UMICollisionResolutionMethod::KeepFirst {
-                // TODO: write the record out and call it a day
-                record_writers.0.write(
-                    std::str::from_utf8(new.0.name()).unwrap(),
-                    Option::from(new.0.id()),
-                    new.0.seq(),
-                    new.0.qual(),
-                )
-                    .expect("couldn't write out a forward record");
-                record_writers.1.write(
-                    std::str::from_utf8(new.1.name()).unwrap(),
-                    Option::from(new.1.id()),
-                    new.1.seq(),
-                    new.1.qual(),
-                ).expect("couldn't write out a reverse record");
+                // write the record immediately; save memory
+                (*pair_handler).write_pair(new.clone());
+                // save an empty set so we don't come here again
+                hash_map.insert(umi.clone(), set);
+                return;
             } else {
-                // if keep first, save on the memory
+                // otherwise, we need to save this
                 set.insert(new.clone());
             }
             hash_map.insert(umi.clone(), set);
@@ -267,7 +259,7 @@ fn main() {
         }
     );
 
-    let mut record_writers = (
+    let record_writers = (
         match fastq::Writer::to_file(args.get_one::<PathBuf>("out-forward").unwrap()) {
             Ok(result) => result,
             Err(_) => {
@@ -283,6 +275,9 @@ fn main() {
             }
         }
     );
+    let mut pair_handler = one_pair_handler::OnePairHandler {
+        record_writers
+    };
 
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
     let mut umi_bins = HashMap::new();
@@ -346,7 +341,7 @@ fn main() {
         if umi_length > 0 {
             let umi: Vec<u8> = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
-                conflict_resolution_method.handle_pair(&mut record_writers, &mut umi_bins, &umi, &(rec_fwr, rec_rev));
+                conflict_resolution_method.handle_pair(&mut pair_handler, &mut umi_bins, &umi, &(rec_fwr, rec_rev));
             } else {
                 if proactive_levenshtein {
                     // instead of checking the distance to elements of the set of known UMIs,
@@ -367,25 +362,25 @@ fn main() {
                             }
                             // if our result is already known, bail out
                             if umi_bins.contains_key(&umi_modified) {
-                                conflict_resolution_method.handle_pair(&mut record_writers, &mut umi_bins, &umi_modified, &(rec_fwr, rec_rev));
+                                conflict_resolution_method.handle_pair(&mut pair_handler, &mut umi_bins, &umi_modified, &(rec_fwr, rec_rev));
                                 continue 'pairs;
                             }
                         }
                     }
 
                     // no proposed alternative was satisfactory; we have a new UMI
-                    conflict_resolution_method.handle_pair(&mut record_writers, &mut umi_bins, &umi, &(rec_fwr, rec_rev));
+                    conflict_resolution_method.handle_pair(&mut pair_handler, &mut umi_bins, &umi, &(rec_fwr, rec_rev));
                 } else {
                     if umi_bins.contains_key(&umi) {
-                        conflict_resolution_method.handle_pair(&mut record_writers, &mut umi_bins, &umi, &(rec_fwr, rec_rev));
+                        conflict_resolution_method.handle_pair(&mut pair_handler, &mut umi_bins, &umi, &(rec_fwr, rec_rev));
                     } else {
                         match find_within_radius(&umi_bins, &umi, levenshtein_max as usize) {
                             None => {
-                                conflict_resolution_method.handle_pair(&mut record_writers, &mut umi_bins, &umi, &(rec_fwr, rec_rev))
+                                conflict_resolution_method.handle_pair(&mut pair_handler, &mut umi_bins, &umi, &(rec_fwr, rec_rev))
                             }
                             Some(found) => {
                                 conflict_resolution_method.handle_pair(
-                                    &mut record_writers, &mut umi_bins, &found, &(rec_fwr, rec_rev))
+                                    &mut pair_handler, &mut umi_bins, &found, &(rec_fwr, rec_rev))
                             }
                         }
                     }
@@ -401,6 +396,10 @@ fn main() {
 
     for (umi, pairs) in umi_bins.into_iter() {
         let to_write = match conflict_resolution_method {
+            UMICollisionResolutionMethod::KeepFirst => {
+                // these records are already on disk
+                Vec::new()
+            }
             UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
                 todo!()
             }
@@ -411,20 +410,9 @@ fn main() {
             }
         };
 
-        // writer_fwr.write(
-        //     std::str::from_utf8(rec_fwr.name()).unwrap(),
-        //     Option::from(rec_fwr.id()),
-        //     &rec_fwr.seq()[start_index_fwr as usize..],
-        //     rec_fwr.qual(),
-        // )
-        //     .expect("couldn't write out a forward record");
-        // writer_rev.write(
-        //     std::str::from_utf8(rec_rev.name()).unwrap(),
-        //     Option::from(rec_rev.id()),
-        //     &rec_rev.seq()[start_index_rev as usize..],
-        //     rec_rev.qual(),
-        // )
-        //     .expect("couldn't write out a reverse record");
+        for pair in to_write.into_iter() {
+            pair_handler.write_pair(pair);
+        }
     }
 
     // TODO: count records before starting and give progress indication
@@ -433,4 +421,5 @@ fn main() {
     // TODO: exit codes
     // TODO: support .f[ast]q.gz[ip] output
     // TODO: do things on quality scores
+    // TODO: quality vote resolution
 }
