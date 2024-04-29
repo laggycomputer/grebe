@@ -220,12 +220,8 @@ fn main() {
 
     let args = cmd.get_matches();
 
-    let input_paths = (
-        args.get_one::<PathBuf>("in-forward").unwrap(),
-        args.get_one::<PathBuf>("in-reverse").unwrap()
-    );
     let record_readers = (
-        match reader_maybe_gzip(input_paths.0) {
+        match reader_maybe_gzip(args.get_one::<PathBuf>("in-forward").unwrap()) {
             Ok((result, was_compressed)) => {
                 if was_compressed { eprintln!("info: parsing {} as a gzip", input_paths.0.display()) }
                 result
@@ -235,7 +231,7 @@ fn main() {
                 exit(1);
             }
         },
-        match reader_maybe_gzip(input_paths.1) {
+        match reader_maybe_gzip(args.get_one::<PathBuf>("in-reverse").unwrap()) {
             Ok((result, was_compressed)) => {
                 if was_compressed { eprintln!("info: parsing {} as a gzip", input_paths.1.display()) }
                 result
