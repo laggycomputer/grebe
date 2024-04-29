@@ -138,7 +138,7 @@ fn main() {
                 result
             }
             Err(_) => {
-                eprintln!("couldn't open output forward .fastq; if it exists, remove it");
+                eprintln!("couldn't open output reverse .fastq; if it exists, remove it");
                 exit(1);
             }
         }
