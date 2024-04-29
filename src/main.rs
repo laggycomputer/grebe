@@ -18,6 +18,8 @@ use pluralizer::pluralize;
 use strum::VariantArray;
 use strum_macros::VariantArray;
 
+type FastqPair = (fastq::Record, fastq::Record);
+
 enum ReaderMaybeGzip {
     GZIP(MultiGzDecoder<BufReader<File>>),
     UNCOMPRESSED(BufReader<File>),
@@ -86,9 +88,9 @@ impl UMICollisionResolutionMethod {
     }
 
     fn insert_pair(
-        &self, hash_map: &mut HashMap<Vec<u8>, HashSet<(fastq::Record, fastq::Record)>>, umi: &Vec<u8>, new: &(fastq::Record, fastq::Record)) {
+        &self, hash_map: &mut HashMap<Vec<u8>, HashSet<FastqPair>>, umi: &Vec<u8>, new: &FastqPair) {
         if !hash_map.contains_key(umi) {
-            let mut set = HashSet::<(fastq::Record, fastq::Record)>::new();
+            let mut set = HashSet::<FastqPair>::new();
             set.insert(new.clone());
             hash_map.insert(umi.clone(), set);
             return;
@@ -122,7 +124,7 @@ impl UMICollisionResolutionMethod {
     }
 }
 
-fn find_within_radius(umi_bins: &HashMap<Vec<u8>, HashSet<(fastq::Record, fastq::Record)>>, umi: &Vec<u8>, radius: usize) -> Option<Vec<u8>> {
+fn find_within_radius(umi_bins: &HashMap<Vec<u8>, HashSet<FastqPair>>, umi: &Vec<u8>, radius: usize) -> Option<Vec<u8>> {
     umi_bins.keys().find(|proposed_umi| edit_distance_bounded(proposed_umi, umi, radius).is_some()).cloned()
 }
 
