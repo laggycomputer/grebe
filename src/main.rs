@@ -80,7 +80,7 @@ impl ValueEnum for UMICollisionResolutionMethod {
             KeepLongestExtend => PossibleValue::new("keep-longest-extend")
                 .help("keep the longest sequence, overwrite it if a longer, later read agrees completely"),
             QualityVote => PossibleValue::new("quality-vote")
-                .help("create one final sequenced by combining base calls and qualities from all matched reads"),
+                .help("create one final sequence by combining base calls and qualities from all matched reads"),
         })
     }
 }
