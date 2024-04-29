@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
-use std::fs::File;
 
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
@@ -10,6 +9,7 @@ use strum::VariantArray;
 use strum_macros::VariantArray;
 
 use crate::FastqPair;
+use crate::writer::WriterMaybeGzip;
 
 #[derive(Clone, Copy, PartialEq, VariantArray)]
 pub(crate) enum UMICollisionResolutionMethod {
@@ -79,7 +79,7 @@ impl ValueEnum for UMICollisionResolutionMethod {
 
 
 pub(crate) struct PairHandler {
-    pub(crate) record_writers: (fastq::Writer<File>, fastq::Writer<File>),
+    pub(crate) record_writers: (fastq::Writer<WriterMaybeGzip>, fastq::Writer<WriterMaybeGzip>),
     pub(crate) collision_resolution_method: UMICollisionResolutionMethod,
     pub(crate) umi_bins: HashMap<Vec<u8>, HashSet<FastqPair>>,
 }

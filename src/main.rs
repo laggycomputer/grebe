@@ -12,9 +12,11 @@ use pluralizer::pluralize;
 
 use crate::pair_handler::{PairHandler, UMICollisionResolutionMethod};
 use crate::reader::reader_maybe_gzip;
+use crate::writer::writer_maybe_gzip;
 
 mod pair_handler;
 mod reader;
+mod writer;
 
 type FastqPair = (fastq::Record, fastq::Record);
 
@@ -115,18 +117,28 @@ fn main() {
         }
     );
 
+    let output_paths = (
+        args.get_one::<PathBuf>("out-forward").unwrap(),
+        args.get_one::<PathBuf>("out-reverse").unwrap()
+    );
     let record_writers = (
-        match fastq::Writer::to_file(args.get_one::<PathBuf>("out-forward").unwrap()) {
-            Ok(result) => result,
+        match writer_maybe_gzip(output_paths.0) {
+            Ok((result, was_compressed)) => {
+                if was_compressed { eprintln!("info: writing {} as a gzip", output_paths.0.display()) }
+                result
+            }
             Err(_) => {
-                eprintln!("couldn't open output forward .fastq");
+                eprintln!("couldn't open output forward .fastq; if it exists, remove it");
                 exit(1);
             }
         },
-        match fastq::Writer::to_file(args.get_one::<PathBuf>("out-reverse").unwrap()) {
-            Ok(result) => result,
+        match writer_maybe_gzip(output_paths.1) {
+            Ok((result, was_compressed)) => {
+                if was_compressed { eprintln!("info: writing {} as a gzip", output_paths.1.display()) }
+                result
+            }
             Err(_) => {
-                eprintln!("couldn't open output reverse .fastq");
+                eprintln!("couldn't open output forward .fastq; if it exists, remove it");
                 exit(1);
             }
         }
@@ -256,7 +268,6 @@ fn main() {
     // TODO: stop assuming forward and reverse reads appear in the proper order
     // TODO: verbose logging (masked reads, etc.)
     // TODO: exit codes
-    // TODO: support .f[ast]q.gz[ip] output
     // TODO: do things on quality scores
     // TODO: quality vote resolution
 }
