@@ -124,7 +124,7 @@ fn main() {
             .visible_alias("collision-resolution-mode")
             .visible_alias("crm")
             .value_parser(clap::value_parser!(UMICollisionResolutionMethod))
-            .default_value("none"))
+            .default_value("keep-first"))
         .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs (but process UMIs even if \
         they would be clipped); reads which become empty are dropped")
             .visible_alias("--start-index")
