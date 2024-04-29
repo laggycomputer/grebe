@@ -122,6 +122,8 @@ fn main() {
             .required(false))
         .arg(clap::arg!(--"collision-resolution-method" <"mode"> "choose how to resolve UMI collisions")
             .visible_alias("collision-resolution-mode")
+            .visible_alias("conflict-resolution-method")
+            .visible_alias("conflict-resolution-mode")
             .visible_alias("crm")
             .value_parser(clap::value_parser!(UMICollisionResolutionMethod))
             .default_value("keep-first"))
