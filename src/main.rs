@@ -140,7 +140,7 @@ fn main() {
     };
 
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
-    let mut seen_umis = HashSet::new();
+    let mut umi_bins = HashMap::new();
 
     let start_index_arg = *args.get_one::<i64>("start-at").unwrap();
     let start_index_rev = start_index_arg;
@@ -197,9 +197,13 @@ fn main() {
         if umi_length > 0 {
             let umi: Vec<u8> = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
-                if !seen_umis.insert(umi) {
+                if umi_bins.contains_key(&umi) {
                     continue;
                 }
+
+                let mut to_insert = HashSet::new();
+                to_insert.insert((rec_fwr.clone(), rec_rev.clone()));
+                umi_bins.insert(umi.clone(), to_insert);
             } else {
                 if proactive_levenshtein {
                     // instead of checking the distance to elements of the set of known UMIs,
@@ -219,15 +223,15 @@ fn main() {
                                 umi_modified[*index as usize] = new_value as u8;
                             }
                             // if our result is already known, bail out
-                            if seen_umis.contains(&umi_modified) {
+                            if umi_bins.contains_key(&umi_modified) {
                                 continue 'pairs;
                             }
                         }
                     }
                 } else {
-                    if seen_umis.contains(&umi) || seen_umis.iter().any(|known_umi|
+                    if umi_bins.contains_key(&umi) || umi_bins.keys().any(|known_umi|
                         edit_distance_bounded(
-                            known_umi.as_ref(),
+                            &**known_umi,
                             umi.as_ref(),
                             levenshtein_max as usize,
                         ).is_some()
@@ -235,7 +239,9 @@ fn main() {
                         continue;
                     }
                 }
-                seen_umis.insert(umi);
+                let mut to_insert = HashSet::new();
+                to_insert.insert((rec_fwr.clone(), rec_rev.clone()));
+                umi_bins.insert(umi, to_insert);
             }
         }
 
