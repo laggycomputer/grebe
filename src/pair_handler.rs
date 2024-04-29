@@ -148,7 +148,6 @@ impl PairHandler {
     }
 
     pub(crate) fn save_all(&mut self) {
-        // this clone is a really bad idea
         for (umi, pairs) in
         <HashMap<Vec<u8>, HashSet<(fastq::Record, fastq::Record)>> as Clone>::clone(&self.umi_bins).into_iter() {
             match self.collision_resolution_method {
