@@ -265,5 +265,4 @@ fn main() {
     // TODO: verbose logging (masked reads, etc.)
     // TODO: exit codes
     // TODO: do things on quality scores
-    // TODO: quality vote resolution
 }

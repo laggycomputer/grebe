@@ -140,6 +140,7 @@ impl PairHandler {
 
         let set = self.umi_bins.get_mut(umi).unwrap();
 
+        // TODO: quality vote resolution
         match self.collision_resolution_method {
             UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
                 // just handle it later somehow
