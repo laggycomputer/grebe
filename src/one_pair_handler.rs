@@ -11,6 +11,7 @@ pub struct OnePairHandler {
 
 impl OnePairHandler {
     pub fn write_pair(&mut self, pair: FastqPair) {
+        // TODO: reimplement slicing etc
         self.record_writers.0.write(
             std::str::from_utf8(pair.0.name()).unwrap(),
             Option::from(pair.0.id()),
