@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
+
 use bio::io::fastq;
 use flate2::bufread::MultiGzDecoder;
 
@@ -13,8 +14,8 @@ pub(crate) enum ReaderMaybeGzip {
 impl Read for ReaderMaybeGzip {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self {
-            ReaderMaybeGzip::GZIP(backer) => { backer.read(buf) }
-            ReaderMaybeGzip::UNCOMPRESSED(backer) => { backer.read(buf) }
+            ReaderMaybeGzip::GZIP(backer) => backer.read(buf),
+            ReaderMaybeGzip::UNCOMPRESSED(backer) => backer.read(buf)
         }
     }
 }
