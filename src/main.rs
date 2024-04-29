@@ -218,28 +218,32 @@ fn main() {
 
     let args = cmd.get_matches();
 
-    let in_forward = args.get_one::<PathBuf>("in-forward").unwrap();
-    let reader_fwr = match reader_maybe_gzip(in_forward) {
-        Ok((result, was_compressed)) => {
-            if was_compressed { eprintln!("info: parsing {} as a gzip", in_forward.display()) }
-            result
+    let input_paths = (
+        args.get_one::<PathBuf>("in-forward").unwrap(),
+        args.get_one::<PathBuf>("in-reverse").unwrap()
+    );
+    let records_in = (
+        match reader_maybe_gzip(input_paths.0) {
+            Ok((result, was_compressed)) => {
+                if was_compressed { eprintln!("info: parsing {} as a gzip", input_paths.0.display()) }
+                result
+            }
+            Err(_) => {
+                eprintln!("couldn't open input forward .fastq");
+                exit(1);
+            }
+        },
+        match reader_maybe_gzip(input_paths.1) {
+            Ok((result, was_compressed)) => {
+                if was_compressed { eprintln!("info: parsing {} as a gzip", input_paths.1.display()) }
+                result
+            }
+            Err(_) => {
+                eprintln!("couldn't open input reverse .fastq");
+                exit(1);
+            }
         }
-        Err(_) => {
-            eprintln!("couldn't open input forward .fastq");
-            exit(1);
-        }
-    };
-    let in_reverse = args.get_one::<PathBuf>("in-reverse").unwrap();
-    let reader_rev = match reader_maybe_gzip(in_reverse) {
-        Ok((result, was_compressed)) => {
-            if was_compressed { eprintln!("info: parsing {} as a gzip", in_reverse.display()) }
-            result
-        }
-        Err(_) => {
-            eprintln!("couldn't open input reverse .fastq");
-            exit(1);
-        }
-    };
+    );
 
     let mut writer_fwr = match fastq::Writer::to_file(args.get_one::<PathBuf>("out-forward").unwrap()) {
         Ok(result) => result,
@@ -286,7 +290,7 @@ fn main() {
 
     let mut total_records = 0;
     let mut good_records = 0;
-    let pairs = reader_fwr.records().zip(reader_rev.records());
+    let pairs = records_in.0.records().zip(records_in.1.records());
     'pairs: for (rec_fwr, rec_rev) in pairs {
         total_records += 1;
 
