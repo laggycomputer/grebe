@@ -85,9 +85,17 @@ impl UMICollisionResolutionMethod {
         }
     }
 
-    /// assumes at least one pair is already present in `set`
     fn insert_pair(
-        &self, set: &mut HashSet::<(fastq::Record, fastq::Record)>, new: &(fastq::Record, fastq::Record)) {
+        &self, hash_map: &mut HashMap<Vec<u8>, HashSet<(fastq::Record, fastq::Record)>>, umi: &Vec<u8>, new: &(fastq::Record, fastq::Record)) {
+        if !hash_map.contains_key(umi) {
+            let mut set = HashSet::<(fastq::Record, fastq::Record)>::new();
+            set.insert(new.clone());
+            hash_map.insert(umi.clone(), set);
+            return;
+        }
+
+        let set = hash_map.get_mut(umi).unwrap();
+
         match self {
             UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
                 // just handle it later somehow
@@ -100,17 +108,24 @@ impl UMICollisionResolutionMethod {
             }
             UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
             UMICollisionResolutionMethod::KeepLongestExtend => {
-                let old = set.iter().next().unwrap();
+                // slightly inefficient; but old must survive the clear
+                // todo: find a way to not copy this memory
+                let old = set.iter().next().unwrap().clone();
 
                 set.clear();
                 set.insert((
-                    self._compare_for_extension(&(*old).0, &(*new).0),
-                    self._compare_for_extension(&(*old).1, &(*new).1)
+                    self._compare_for_extension(&old.0, &new.0),
+                    self._compare_for_extension(&old.1, &new.1)
                 ));
             }
         }
     }
 }
+
+fn find_within_radius(umi_bins: &HashMap<Vec<u8>, HashSet<(fastq::Record, fastq::Record)>>, umi: &Vec<u8>, radius: usize) -> Option<Vec<u8>> {
+    umi_bins.keys().find(|proposed_umi| edit_distance_bounded(proposed_umi, umi, radius).is_some()).cloned()
+}
+
 
 impl ValueEnum for UMICollisionResolutionMethod {
     fn value_variants<'a>() -> &'a [Self] {
@@ -302,14 +317,7 @@ fn main() {
         if umi_length > 0 {
             let umi: Vec<u8> = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
-                if umi_bins.contains_key(&umi) {
-                    conflict_resolution_method.insert_pair(&mut umi_bins.get(&umi).unwrap(), &(rec_fwr, rec_rev));
-                    continue 'pairs;
-                }
-
-                let mut to_insert = HashSet::new();
-                to_insert.insert((rec_fwr.clone(), rec_rev.clone()));
-                umi_bins.insert(umi.clone(), to_insert);
+                conflict_resolution_method.insert_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev));
             } else {
                 if proactive_levenshtein {
                     // instead of checking the distance to elements of the set of known UMIs,
@@ -330,46 +338,49 @@ fn main() {
                             }
                             // if our result is already known, bail out
                             if umi_bins.contains_key(&umi_modified) {
-                                conflict_resolution_method.insert_pair(&mut umi_bins.get(&umi).unwrap(),
-                                                                       &(rec_fwr, rec_rev));
+                                conflict_resolution_method.insert_pair(&mut umi_bins, &umi_modified, &(rec_fwr, rec_rev));
                                 continue 'pairs;
                             }
                         }
                     }
+
+                    // no proposed alternative was satisfactory; we have a new UMI
+                    conflict_resolution_method.insert_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev));
                 } else {
-                    if umi_bins.contains_key(&umi) || umi_bins.keys().any(|known_umi|
-                        edit_distance_bounded(
-                            &**known_umi,
-                            umi.as_ref(),
-                            levenshtein_max as usize,
-                        ).is_some()
-                    ) {
-                        conflict_resolution_method.insert_pair(&mut umi_bins.get(&umi).unwrap(), &(rec_fwr, rec_rev));
-                        continue 'pairs;
+                    if umi_bins.contains_key(&umi) {
+                        conflict_resolution_method.insert_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev));
+                    } else {
+                        match find_within_radius(&umi_bins, &umi, levenshtein_max as usize) {
+                            None => {
+                                conflict_resolution_method.insert_pair(&mut umi_bins, &umi, &(rec_fwr, rec_rev))
+                            }
+                            Some(found) => {
+                                conflict_resolution_method.insert_pair(
+                                    &mut umi_bins, &found, &(rec_fwr, rec_rev))
+                            }
+                        }
                     }
                 }
-                let mut to_insert = HashSet::new();
-                to_insert.insert((rec_fwr.clone(), rec_rev.clone()));
-                umi_bins.insert(umi, to_insert);
             }
         }
 
         good_records += 1;
 
-        writer_fwr.write(
-            std::str::from_utf8(rec_fwr.name()).unwrap(),
-            Option::from(rec_fwr.id()),
-            &rec_fwr.seq()[start_index_fwr as usize..],
-            rec_fwr.qual(),
-        )
-            .expect("couldn't write out a forward record");
-        writer_rev.write(
-            std::str::from_utf8(rec_rev.name()).unwrap(),
-            Option::from(rec_rev.id()),
-            &rec_rev.seq()[start_index_rev as usize..],
-            rec_rev.qual(),
-        )
-            .expect("couldn't write out a reverse record");
+        // TODO: don't write just yet, finalize conflict resolution first
+        // writer_fwr.write(
+        //     std::str::from_utf8(rec_fwr.name()).unwrap(),
+        //     Option::from(rec_fwr.id()),
+        //     &rec_fwr.seq()[start_index_fwr as usize..],
+        //     rec_fwr.qual(),
+        // )
+        //     .expect("couldn't write out a forward record");
+        // writer_rev.write(
+        //     std::str::from_utf8(rec_rev.name()).unwrap(),
+        //     Option::from(rec_rev.id()),
+        //     &rec_rev.seq()[start_index_rev as usize..],
+        //     rec_rev.qual(),
+        // )
+        //     .expect("couldn't write out a reverse record");
     }
 
     println!("filtered {} down to {}", pluralize("pair", total_records, true), pluralize("pair", good_records, true));
