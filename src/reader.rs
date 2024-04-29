@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use std::process::exit;
 
 use bio::io::fastq;
-use bio::io::fastq::Reader;
 use flate2::bufread::MultiGzDecoder;
 
 pub(crate) enum ReaderMaybeGzip {
@@ -39,7 +38,7 @@ pub(crate) fn reader_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Reader<Buf
 }
 
 pub fn make_reader_pair(input_paths: (&PathBuf, &PathBuf), silent: bool)
-                        -> (Reader<BufReader<ReaderMaybeGzip>>, Reader<BufReader<ReaderMaybeGzip>>) {
+                        -> (fastq::Reader<BufReader<ReaderMaybeGzip>>, fastq::Reader<BufReader<ReaderMaybeGzip>>) {
     (
         match reader_maybe_gzip(input_paths.0) {
             Ok((result, was_compressed)) => {
