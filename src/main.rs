@@ -65,8 +65,7 @@ fn main() {
             .required(false)
             .default_value("0"))
         .arg(clap::arg!(-'l' <"levenshtein radius"> "(0 to disable) bin UMIs together if at most this Levenshtein \
-        distance apart (useful for small libraries to reduce error rates, but incurs time penalty quadratic in number \
-        of reads)")
+        distance apart (useful for small libraries to reduce error rates, but very slow on genomic-scale data)")
             .id("levenshtein-radius")
             .visible_alias("levenshtein")
             .visible_alias("levenshtein-radius")
