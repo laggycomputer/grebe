@@ -60,7 +60,7 @@ pub(crate) fn writer_from_path(path_buf: &PathBuf) -> fastq::Writer<WriterMaybeG
         }
         Err(err) => {
             match err.kind() {
-                ErrorKind::Other => eprintln!("Refusing to overwrite nonempty file {}", path_buf.display()),
+                ErrorKind::Other => eprintln!("refusing to overwrite nonempty file {}", path_buf.display()),
                 _ => eprintln!("couldn't open output {} for writing", path_buf.display())
             }
             exit(1);
