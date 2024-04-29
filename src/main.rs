@@ -18,7 +18,7 @@ use pluralizer::pluralize;
 use strum::VariantArray;
 use strum_macros::VariantArray;
 
-use crate::UMIResolutionMethod::{KeepFirst, KeepLongestExtend, KeepLongestLeft, QualityVote};
+use crate::UMICollisionResolutionMethod::{KeepFirst, KeepLongestExtend, KeepLongestLeft, QualityVote};
 
 enum ReaderMaybeGzip {
     GZIP(MultiGzDecoder<BufReader<File>>),
@@ -49,7 +49,7 @@ fn reader_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Reader<BufReader<Read
 }
 
 #[derive(Clone, VariantArray)]
-enum UMIResolutionMethod {
+enum UMICollisionResolutionMethod {
     None,
     KeepFirst,
     KeepLast,
@@ -59,7 +59,7 @@ enum UMIResolutionMethod {
     QualityVote,
 }
 
-impl ValueEnum for UMIResolutionMethod {
+impl ValueEnum for UMICollisionResolutionMethod {
     fn value_variants<'a>() -> &'a [Self] {
         &Self::VARIANTS
     }
@@ -71,11 +71,11 @@ impl ValueEnum for UMIResolutionMethod {
                 .help("keep duplicates, prepend their assigned UMI to their sequence names"),
             KeepFirst => PossibleValue::new("keep-first")
                 .help("keep the first sequence matched to this UMI, ignore any sequences that follow"),
-            UMIResolutionMethod::KeepLast => PossibleValue::new("keep-last")
+            UMICollisionResolutionMethod::KeepLast => PossibleValue::new("keep-last")
                 .help("keep the last sequence matched, ignore any sequences that come before"),
             KeepLongestLeft => PossibleValue::new("keep-longest-left")
                 .help("keep the longest sequence matched, favor the earlier sequence when tied"),
-            UMIResolutionMethod::KeepLongestRight => PossibleValue::new("keep-longest-right")
+            UMICollisionResolutionMethod::KeepLongestRight => PossibleValue::new("keep-longest-right")
                 .help("keep the longest sequence matched, favor the later sequence when tied"),
             KeepLongestExtend => PossibleValue::new("keep-longest-extend")
                 .help("keep the longest sequence, overwrite it if a longer, later read agrees completely"),
@@ -120,10 +120,11 @@ fn main() {
             .visible_alias("pl")
             .value_parser(clap::value_parser!(bool))
             .required(false))
-        .arg(clap::arg!(--"resolution-method" <"mode"> "choose how to resolve UMI collisions")
-            .visible_alias("resolution-mode")
-            .visible_alias("rm")
-            .value_parser(clap::value_parser!(UMIResolutionMethod)))
+        .arg(clap::arg!(--"collision-resolution-method" <"mode"> "choose how to resolve UMI collisions")
+            .visible_alias("collision-resolution-mode")
+            .visible_alias("crm")
+            .value_parser(clap::value_parser!(UMICollisionResolutionMethod))
+            .default_value("none"))
         .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs (but process UMIs even if \
         they would be clipped); reads which become empty are dropped")
             .visible_alias("--start-index")
