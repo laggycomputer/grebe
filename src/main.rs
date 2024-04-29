@@ -243,20 +243,22 @@ fn main() {
         }
     );
 
-    let mut writer_fwr = match fastq::Writer::to_file(args.get_one::<PathBuf>("out-forward").unwrap()) {
-        Ok(result) => result,
-        Err(_) => {
-            eprintln!("couldn't open output forward .fastq");
-            exit(1);
+    let record_writers = (
+        match fastq::Writer::to_file(args.get_one::<PathBuf>("out-forward").unwrap()) {
+            Ok(result) => result,
+            Err(_) => {
+                eprintln!("couldn't open output forward .fastq");
+                exit(1);
+            }
+        },
+        match fastq::Writer::to_file(args.get_one::<PathBuf>("out-reverse").unwrap()) {
+            Ok(result) => result,
+            Err(_) => {
+                eprintln!("couldn't open output reverse .fastq");
+                exit(1);
+            }
         }
-    };
-    let mut writer_rev = match fastq::Writer::to_file(args.get_one::<PathBuf>("out-reverse").unwrap()) {
-        Ok(result) => result,
-        Err(_) => {
-            eprintln!("couldn't open output reverse .fastq");
-            exit(1);
-        }
-    };
+    );
 
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
     let mut umi_bins = HashMap::new();
