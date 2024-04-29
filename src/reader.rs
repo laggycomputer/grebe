@@ -62,7 +62,7 @@ fn reader_from_path(path_buf: &PathBuf, silent: bool) -> fastq::Reader<ReaderMay
             result
         }
         Err(_) => {
-            eprintln!("couldn't open {} for reading", path_buf.display());
+            eprintln!("couldn't open input {} for reading", path_buf.display());
             exit(1);
         }
     }
