@@ -5,11 +5,11 @@ use bio::io::fastq;
 
 use crate::FastqPair;
 
-pub struct OnePairHandler {
+pub struct PairHandler {
     pub(crate) record_writers: (fastq::Writer<File>, fastq::Writer<File>),
 }
 
-impl OnePairHandler {
+impl PairHandler {
     pub fn write_pair(&mut self, pair: FastqPair) {
         // TODO: reimplement slicing etc
         self.record_writers.0.write(

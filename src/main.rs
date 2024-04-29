@@ -17,7 +17,7 @@ use pluralizer::pluralize;
 use strum::VariantArray;
 use strum_macros::VariantArray;
 
-mod one_pair_handler;
+mod pair_handler;
 
 type FastqPair = (fastq::Record, fastq::Record);
 
@@ -89,7 +89,7 @@ impl UMICollisionResolutionMethod {
     }
 
     fn handle_pair(
-        &self, pair_handler: &mut one_pair_handler::OnePairHandler, hash_map: &mut HashMap<Vec<u8>,
+        &self, pair_handler: &mut pair_handler::PairHandler, hash_map: &mut HashMap<Vec<u8>,
             HashSet<FastqPair>>, umi: &Vec<u8>, new: &FastqPair) {
         if !hash_map.contains_key(umi) {
             let mut set = HashSet::<FastqPair>::new();
@@ -275,7 +275,7 @@ fn main() {
             }
         }
     );
-    let mut pair_handler = one_pair_handler::OnePairHandler {
+    let mut pair_handler = pair_handler::PairHandler {
         record_writers
     };
 
