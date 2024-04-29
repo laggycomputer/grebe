@@ -42,7 +42,7 @@ fn reader_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Reader<BufReader<Read
     if magic.eq(&[0x1f, 0x8b]) {
         Ok((fastq::Reader::from_bufread(BufReader::new(ReaderMaybeGzip::GZIP(MultiGzDecoder::new(reopen)))), true))
     } else {
-        Ok((fastq::Reader::from_bufread(BufReader::new(ReaderMaybeGzip::UNCOMPRESSED(reopen))), true))
+        Ok((fastq::Reader::from_bufread(BufReader::new(ReaderMaybeGzip::UNCOMPRESSED(reopen))), false))
     }
 }
 
