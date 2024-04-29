@@ -88,7 +88,8 @@ impl UMICollisionResolutionMethod {
     }
 
     fn handle_pair(
-        &self, mut record_writers: &mut (fastq::Writer<File>, fastq::Writer<File>), hash_map: &mut HashMap<Vec<u8>, HashSet<FastqPair>>, umi: &Vec<u8>, new: &FastqPair) {
+        &self, mut record_writers: &mut (fastq::Writer<File>, fastq::Writer<File>), hash_map: &mut HashMap<Vec<u8>,
+            HashSet<FastqPair>>, umi: &Vec<u8>, new: &FastqPair) {
         if !hash_map.contains_key(umi) {
             let mut set = HashSet::<FastqPair>::new();
             if *self == UMICollisionResolutionMethod::KeepFirst {
@@ -142,7 +143,8 @@ impl UMICollisionResolutionMethod {
     }
 }
 
-fn find_within_radius(umi_bins: &HashMap<Vec<u8>, HashSet<FastqPair>>, umi: &Vec<u8>, radius: usize) -> Option<Vec<u8>> {
+fn find_within_radius(umi_bins: &HashMap<Vec<u8>, HashSet<FastqPair>>, umi: &Vec<u8>, radius: usize)
+                      -> Option<Vec<u8>> {
     umi_bins.keys().find(|proposed_umi| edit_distance_bounded(proposed_umi, umi, radius).is_some()).cloned()
 }
 
