@@ -259,7 +259,7 @@ fn main() {
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
     let mut umi_bins = HashMap::new();
 
-    let conflict_resolution_method = args.get_one::<UMICollisionResolutionMethod>("collision-resolution-method")
+    let conflict_resolution_method = args.get_one::<UMICollisionResolutionMethod>("collision-resolution-mode")
         .unwrap();
 
     let start_index_arg = *args.get_one::<i64>("start-at").unwrap();
@@ -305,7 +305,8 @@ fn main() {
             }
         };
 
-        if rec_fwr.seq().len() < (start_index_fwr + 1) as usize || rec_rev.seq().len() < (start_index_rev + 1) as usize {
+        if rec_fwr.seq().len() < (start_index_fwr + 1) as usize ||
+            rec_rev.seq().len() < (start_index_rev + 1) as usize {
             continue;
         }
 
