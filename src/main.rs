@@ -62,6 +62,8 @@ impl ValueEnum for UMICollisionResolutionMethod {
                 on base calls"),
             UMICollisionResolutionMethod::QualityVote => PossibleValue::new("quality-vote")
                 .alias("quality-voting")
+                .alias("vote")
+                .alias("voting")
                 .alias("qv")
                 .help("create one final sequence by combining base calls and qualities from all matched reads"),
         })
