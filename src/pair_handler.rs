@@ -1,4 +1,5 @@
 use std::{io, iter};
+use std::borrow::Borrow;
 use std::cmp::{max, Ordering};
 use std::collections::{HashMap, HashSet};
 use std::io::BufWriter;
@@ -114,20 +115,21 @@ impl PairHandler {
             UMICollisionResolutionMethod::None => {
                 self.good_records += 1;
 
+                let umi_space = [String::from_utf8(umi.clone()).unwrap(), " ".parse().unwrap()].concat();
                 // write the record, add UMI
                 let id_prefix = match umi.len() {
                     0 => "",
-                    _ => std::str::from_utf8(umi).unwrap()
+                    _ => &umi_space
                 };
                 let pair_new = (
                     fastq::Record::with_attrs(
-                        &*(id_prefix.to_owned() + " " + std::str::from_utf8(pair.0.name()).unwrap()),
+                        &*(id_prefix.to_owned() + std::str::from_utf8(pair.0.name()).unwrap()),
                         pair.0.desc(),
                         &*pair.0.seq(),
                         &*pair.0.qual(),
                     ),
                     fastq::Record::with_attrs(
-                        &*(id_prefix.to_owned() + " " + std::str::from_utf8(pair.1.name()).unwrap()),
+                        &*(id_prefix.to_owned() + std::str::from_utf8(pair.1.name()).unwrap()),
                         pair.1.desc(),
                         &*pair.1.seq(),
                         &*pair.1.qual(),
