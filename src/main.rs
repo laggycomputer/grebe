@@ -9,10 +9,11 @@ use editdistancek::edit_distance_bounded;
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use pluralizer::pluralize;
+use pair_handler::UMICollisionResolutionMethod;
 
 use types::FastqPair;
 
-use crate::pair_handler::{PairHandler, UMICollisionResolutionMethod};
+use crate::pair_handler::PairHandler;
 use crate::reader::make_reader_pair;
 use crate::types::UMIVec;
 
@@ -52,10 +53,10 @@ fn main() {
             .visible_alias("conflict-resolution-mode")
             .visible_alias("conflict-resolution-method")
             .visible_alias("crm")
-            .value_parser(clap::value_parser!(pair_handler::UMICollisionResolutionMethod))
+            .value_parser(clap::value_parser!(UMICollisionResolutionMethod))
             .default_value("keep-first"))
-        .arg(clap::arg!(-'l' <"levenshtein radius"> "(0 to disable) bin UMIs together if at most this Levenshtein \
-        distance apart (useful for small libraries to reduce error rates, but very slow on genomic-scale data)")
+        .arg(clap::arg!(-'l' <"levenshtein radius"> "bin UMIs together if at most this Levenshtein distance apart \
+        (useful for small libraries to reduce error rates, but very slow on genomic-scale data)")
             .id("levenshtein-radius")
             .visible_alias("levenshtein")
             .visible_alias("levenshtein-radius")
