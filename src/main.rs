@@ -143,7 +143,7 @@ fn main() {
     let record_readers = make_reader_pair(input_paths, true);
     // TODO: reverse reads here too
     let total_records = record_readers.0.records().count();
-    let record_readers = make_reader_pair(input_paths, true);
+    let record_readers = make_reader_pair(input_paths, false);
 
     let output_paths = (
         args.get_one::<PathBuf>("out-forward").unwrap(),
