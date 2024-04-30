@@ -1,16 +1,17 @@
-use std::cmp::Ordering;
+use std::{io, iter};
+use std::cmp::{max, Ordering};
 use std::collections::{HashMap, HashSet};
-use std::io;
 use std::io::BufWriter;
 
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
 use clap::builder::PossibleValue;
 use clap::ValueEnum;
+use itertools::Itertools;
 use strum::VariantArray;
 use strum_macros::VariantArray;
 
-use crate::types::{FastqPair, UMIVec};
+use crate::types::{BaseQualityVotes, FastqPair, QualityVoteTotal, QualityVoteVec, UMIVec};
 use crate::writer::WriterMaybeGzip;
 
 #[derive(Clone, Copy, PartialEq, VariantArray)]
@@ -86,7 +87,7 @@ pub(crate) struct PairHandler {
     pub(crate) total_records: usize,
     pub(crate) good_records: usize,
     // ATCG order, only populated if --crm quality-vote
-    pub(crate) quality_votes: HashMap<UMIVec, Vec<(usize, usize, usize, usize)>>,
+    pub(crate) quality_votes: HashMap<UMIVec, (QualityVoteVec, QualityVoteVec)>,
 }
 
 impl Default for PairHandler {
@@ -149,20 +150,26 @@ impl PairHandler {
                 );
                 self.write_pair(pair_new);
             }
-            // special case: no set, need to update the map every time anyway
-            UMICollisionResolutionMethod::QualityVote => {
-                // submit the "ballots" and save to disk later
-                todo!();
-            }
             _ => {
                 if !self.umi_bins.contains_key(umi) {
                     let mut set = HashSet::<FastqPair>::new();
                     match self.collision_resolution_method {
-                        UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
-                            // handled above, but technically still a case here; nothing needs to be done down here
+                        UMICollisionResolutionMethod::None => {
+                            // handled above and returned to caller, nothing needs to be done down here
                             unreachable!();
                         }
                         // special cases: `umi_bins` is involved but only to indicate a UMI has been seen
+                        UMICollisionResolutionMethod::QualityVote => {
+                            // create the "ballots" and save to disk later
+                            let mut votes = (
+                                Vec::<BaseQualityVotes>::new(), Vec::<BaseQualityVotes>::new()
+                            );
+                            votes.0.extend(iter::repeat((0, 0, 0, 0)).take(pair.0.len() - umi.len()));
+                            votes.1.extend(iter::repeat((0, 0, 0, 0)).take(pair.1.len()));
+
+                            Self::update_vote_vec(&mut votes, pair, umi.len());
+                            self.quality_votes.insert(umi.clone(), votes);
+                        }
                         UMICollisionResolutionMethod::KeepFirst => {
                             // write the record immediately; save memory
                             self.write_pair(pair.clone());
@@ -182,9 +189,22 @@ impl PairHandler {
                     let set = self.umi_bins.get_mut(umi).unwrap();
 
                     match self.collision_resolution_method {
-                        UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote |
-                        UMICollisionResolutionMethod::KeepFirst => {
+                        UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::KeepFirst => {
                             // already handled above, no need for anything involving the set
+                        }
+                        // need to do a bit
+                        UMICollisionResolutionMethod::QualityVote => {
+                            // update the "ballots"
+                            let mut votes = self.quality_votes.get_mut(umi).unwrap();
+                            // stretch to size sufficient to fit data
+                            votes.0.extend(
+                                iter::repeat((0, 0, 0, 0))
+                                    .take(max((pair.0.seq().len() - umi.len()).saturating_sub(votes.0.len()), 0)));
+                            votes.1.extend(
+                                iter::repeat((0, 0, 0, 0))
+                                    .take(max(pair.1.seq().len().saturating_sub(votes.1.len()), 0)));
+
+                            Self::update_vote_vec(&mut votes, pair, umi.len());
                         }
                         // un-special cases, again
                         UMICollisionResolutionMethod::KeepLast => {
@@ -209,6 +229,34 @@ impl PairHandler {
         }
     }
 
+    fn update_vote_vec(votes: &mut (QualityVoteVec, QualityVoteVec), pair: &FastqPair, umi_len: usize) {
+        for (ind, (base, qual)) in pair.0.seq().iter()
+            .zip(pair.0.qual()).dropping(umi_len)
+            .enumerate() {
+            match base.to_ascii_uppercase() {
+                b'A' => votes.0.get_mut(ind).unwrap().0 += *qual as QualityVoteTotal,
+                b'T' => votes.0.get_mut(ind).unwrap().1 += *qual as QualityVoteTotal,
+                b'C' => votes.0.get_mut(ind).unwrap().2 += *qual as QualityVoteTotal,
+                b'G' => votes.0.get_mut(ind).unwrap().3 += *qual as QualityVoteTotal,
+                b'N' => {},  // this read abstains for this base
+                _ => unimplemented!()
+            }
+        }
+
+        for (ind, (base, qual)) in pair.1.seq().iter()
+            .zip(pair.1.qual())
+            .enumerate() {
+            match base.to_ascii_uppercase() {
+                b'A' => votes.1.get_mut(ind).unwrap().0 += *qual as QualityVoteTotal,
+                b'T' => votes.1.get_mut(ind).unwrap().1 += *qual as QualityVoteTotal,
+                b'C' => votes.1.get_mut(ind).unwrap().2 += *qual as QualityVoteTotal,
+                b'G' => votes.1.get_mut(ind).unwrap().3 += *qual as QualityVoteTotal,
+                b'N' => {},  // this read abstains for this base
+                _ => unimplemented!()
+            }
+        }
+    }
+
     pub(crate) fn save_remaining(&mut self) {
         for (umi, pairs) in
         <HashMap<UMIVec, HashSet<(fastq::Record, fastq::Record)>> as Clone>::clone(&self.umi_bins).into_iter() {
@@ -217,6 +265,28 @@ impl PairHandler {
                     // these records are already on disk
                 }
                 UMICollisionResolutionMethod::QualityVote => {
+                    let votes = self.quality_votes.get(&umi).unwrap();
+
+                    // for a tuple of vote totals:
+                    let count_votes = |totals: &BaseQualityVotes| -> u8 {
+                        // for each possible base (0..4), fetch the number of votes for that base
+                        match (0..4).max_by_key(|i| match i {
+                            0 => totals.0,
+                            1 => totals.1,
+                            2 => totals.2,
+                            3 => totals.3,
+                            _ => unimplemented!()
+                        }).unwrap() {  // now convert the winning index to a base
+                            0 => b'A',
+                            1 => b'T',
+                            2 => b'C',
+                            3 => b'G',
+                            _ => unimplemented!()
+                        }
+                    };
+                    let resolved: (Vec<u8>, Vec<u8>) = (
+                        votes.0.iter().map(count_votes).collect(), votes.1.iter().map(count_votes).collect());
+                    println!("{:?}", resolved);
                     todo!()
                 }
                 _ => {
