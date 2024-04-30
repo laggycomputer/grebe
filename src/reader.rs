@@ -10,7 +10,7 @@ use flate2::bufread::MultiGzDecoder;
 pub(crate) enum ReaderMaybeGzip {
     GZIP(BufReader<MultiGzDecoder<BufReader<File>>>),
     UNCOMPRESSED(BufReader<File>),
-    NULL(BufReader<io::Empty>),
+    // NULL(BufReader<io::Empty>),
 }
 
 impl Read for ReaderMaybeGzip {
@@ -18,7 +18,7 @@ impl Read for ReaderMaybeGzip {
         match self {
             ReaderMaybeGzip::GZIP(backer) => backer.read(buf),
             ReaderMaybeGzip::UNCOMPRESSED(backer) => backer.read(buf),
-            ReaderMaybeGzip::NULL(backer) => backer.read(buf),
+            // ReaderMaybeGzip::NULL(backer) => backer.read(buf),
         }
     }
 }
@@ -28,7 +28,7 @@ impl BufRead for ReaderMaybeGzip {
         match self {
             ReaderMaybeGzip::GZIP(backer) => backer.fill_buf(),
             ReaderMaybeGzip::UNCOMPRESSED(backer) => backer.fill_buf(),
-            ReaderMaybeGzip::NULL(backer) => backer.fill_buf(),
+            // ReaderMaybeGzip::NULL(backer) => backer.fill_buf(),
         }
     }
 
@@ -36,7 +36,7 @@ impl BufRead for ReaderMaybeGzip {
         match self {
             ReaderMaybeGzip::GZIP(backer) => backer.consume(amt),
             ReaderMaybeGzip::UNCOMPRESSED(backer) => backer.consume(amt),
-            ReaderMaybeGzip::NULL(backer) => backer.consume(amt),
+            // ReaderMaybeGzip::NULL(backer) => backer.consume(amt),
         }
     }
 }
