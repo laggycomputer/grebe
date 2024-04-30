@@ -36,11 +36,13 @@ impl ValueEnum for UMICollisionResolutionMethod {
         Some(match self {
             Self::None => PossibleValue::new("none")
                 .help("keep duplicates, prepend their assigned UMI to their sequence names"),
-            UMICollisionResolutionMethod::KeepFirst => PossibleValue::new("keep-first")
+            UMICollisionResolutionMethod::KeepFirst => PossibleValue::new("first")
+                .alias("keep-first")
                 .alias("keep-left")
                 .alias("kl")
                 .help("keep the first sequence matched to this UMI, ignore any sequences that follow"),
-            UMICollisionResolutionMethod::KeepLast => PossibleValue::new("keep-last")
+            UMICollisionResolutionMethod::KeepLast => PossibleValue::new("last")
+                .alias("keep-last")
                 .alias("keep-right")
                 .alias("kr")
                 .help("keep the last sequence matched, ignore any sequences that come before"),
