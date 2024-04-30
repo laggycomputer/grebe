@@ -120,7 +120,7 @@ impl PairHandler {
         ).expect("couldn't write out a reverse record");
     }
 
-    pub(crate) fn handle_pair(
+    pub(crate) fn insert_pair(
         &mut self, umi: &Vec<u8>, new: &FastqPair) {
         if !self.umi_bins.contains_key(umi) {
             let mut set = HashSet::<FastqPair>::new();

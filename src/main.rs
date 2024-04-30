@@ -167,7 +167,7 @@ fn main() {
         if umi_length > 0 {
             let umi: Vec<u8> = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
-                pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev));
+                pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
             } else {
                 if proactive_levenshtein {
                     // instead of checking the distance to elements of the set of known UMIs,
@@ -188,21 +188,21 @@ fn main() {
                             }
                             // if our result is already known, bail out
                             if pair_handler.umi_bins.contains_key(&umi_modified) {
-                                pair_handler.handle_pair(&umi_modified, &(rec_fwr, rec_rev));
+                                pair_handler.insert_pair(&umi_modified, &(rec_fwr, rec_rev));
                                 continue 'pairs;
                             }
                         }
                     }
 
                     // no proposed alternative was satisfactory; we have a new UMI
-                    pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev));
+                    pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
                 } else {
                     if pair_handler.umi_bins.contains_key(&umi) {
-                        pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev));
+                        pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
                     } else {
                         match find_within_radius(&pair_handler.umi_bins, &umi, levenshtein_max as usize) {
-                            None => pair_handler.handle_pair(&umi, &(rec_fwr, rec_rev)),
-                            Some(found) => pair_handler.handle_pair(&found, &(rec_fwr, rec_rev))
+                            None => pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev)),
+                            Some(found) => pair_handler.insert_pair(&found, &(rec_fwr, rec_rev))
                         }
                     }
                 }
