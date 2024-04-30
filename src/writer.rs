@@ -1,7 +1,6 @@
-use std::{fs, io};
 use std::fs::{File, OpenOptions};
-use std::io::{BufWriter, ErrorKind, Write};
-use std::os::unix::fs::MetadataExt;
+use std::io;
+use std::io::{BufWriter, ErrorKind, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -34,12 +33,12 @@ impl Write for WriterMaybeGzip {
 }
 
 pub(crate) fn writer_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Writer<WriterMaybeGzip>, bool), io::Error> {
-    let meta = fs::metadata(path_buf);
-    if meta.is_ok() && meta.unwrap().size() > 0 {
+    let mut file = OpenOptions::new().write(true).create(true).open(path_buf)?;
+    if file.seek(SeekFrom::End(0)).unwrap() > 0 {
         return Err(io::Error::other(""));
     }
 
-    let file = OpenOptions::new().write(true).create(true).open(path_buf)?;
+    file.seek(SeekFrom::Start(0))?;
 
     if match path_buf.extension() {
         None => false,
