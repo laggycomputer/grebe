@@ -194,7 +194,8 @@ impl PairHandler {
                         }
                         UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
                         UMICollisionResolutionMethod::KeepLongestExtend => {
-                            let old = set.iter().next().unwrap();
+                            // this clone isn't the best but meh
+                            let old = set.iter().next().unwrap().clone();
 
                             set.insert((
                                 self.collision_resolution_method._compare_for_extension(&old.0, &pair.0),
