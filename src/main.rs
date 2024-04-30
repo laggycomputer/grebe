@@ -56,7 +56,7 @@ fn main() {
             .value_parser(clap::value_parser!(UMICollisionResolutionMethod))
             .default_value("keep-first"))
         .arg(clap::arg!(-'l' <"levenshtein radius"> "bin UMIs together if at most this Levenshtein distance apart \
-        (useful for small libraries to reduce error rates, but very slow on genomic-scale data)")
+        (good for small library error tolerance, but very slow on genomic-scale data)")
             .id("levenshtein-radius")
             .visible_alias("levenshtein")
             .visible_alias("levenshtein-radius")
