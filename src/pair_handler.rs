@@ -124,8 +124,8 @@ impl PairHandler {
 
     pub(crate) fn insert_pair(&mut self, umi: &UMIVec, pair: &FastqPair) {
         match self.collision_resolution_method {
+            // very special case: no comparison, etc., just go straight to disk
             UMICollisionResolutionMethod::None => {
-                // special case: no comparison, etc., just go straight to disk
                 self.good_records += 1;
 
                 // write the record, add UMI
@@ -157,6 +157,7 @@ impl PairHandler {
                             // handled above, but technically still a case here
                             unreachable!();
                         }
+                        // special cases: `umi_bins` is involved but only to indicate a UMI has been seen
                         UMICollisionResolutionMethod::KeepFirst => {
                             // write the record immediately; save memory
                             self.write_pair(pair.clone());
@@ -167,6 +168,7 @@ impl PairHandler {
                             // here, an empty set will also be used to take note of the UMI bin
                             todo!();
                         }
+                        // unspecial cases: full comparison with the contents of `umi_bins` is necessary
                         _ => {
                             // otherwise, we need to save this
                             set.insert(pair.clone());
@@ -184,7 +186,9 @@ impl PairHandler {
                         UMICollisionResolutionMethod::KeepFirst => {
                             // already handled above, no need for anything involving the set
                         }
+                        // unspecial cases, again
                         UMICollisionResolutionMethod::KeepLast => {
+                            // always replace, without any checks
                             set.clear();
                             set.insert(pair.clone());
                         }
