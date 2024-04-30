@@ -85,6 +85,8 @@ pub(crate) struct PairHandler {
     pub(crate) umi_bins: HashMap<UMIVec, HashSet<FastqPair>>,
     pub(crate) total_records: usize,
     pub(crate) good_records: usize,
+    // ATCG
+    pub(crate) quality_votes: Option<HashMap<UMIVec, (usize, usize, usize, usize)>>,
 }
 
 impl Default for PairHandler {
@@ -97,6 +99,7 @@ impl Default for PairHandler {
             umi_bins: Default::default(),
             total_records: 0,
             good_records: 0,
+            quality_votes: Default::default(),
         }
     }
 }
@@ -120,81 +123,86 @@ impl PairHandler {
     }
 
     pub(crate) fn insert_pair(&mut self, umi: &UMIVec, pair: &FastqPair) {
-        // special case: no comparison, etc., just go straight to disk
-        if self.collision_resolution_method == UMICollisionResolutionMethod::None {
-            self.good_records += 1;
-
-            // write the record, add UMI
-            let id_prefix = match umi.len() {
-                0 => "",
-                _ => std::str::from_utf8(umi).unwrap()
-            };
-            let pair_new = (
-                fastq::Record::with_attrs(
-                    &*(id_prefix.to_owned() + " " + std::str::from_utf8(pair.0.name()).unwrap()),
-                    pair.0.desc(),
-                    &*pair.0.seq(),
-                    &*pair.0.qual(),
-                ),
-                fastq::Record::with_attrs(
-                    &*(id_prefix.to_owned() + " " + std::str::from_utf8(pair.1.name()).unwrap()),
-                    pair.1.desc(),
-                    &*pair.1.seq(),
-                    &*pair.1.qual(),
-                )
-            );
-            self.write_pair(pair_new);
-
-            // just bail; nothing to insert, etc. because UMI has already been matched
-            return;
-        }
-
-        if !self.umi_bins.contains_key(umi) {
-            let mut set = HashSet::<FastqPair>::new();
-            match self.collision_resolution_method {
-                UMICollisionResolutionMethod::KeepFirst => {
-                    // write the record immediately; save memory
-                    self.write_pair(pair.clone());
-                    // save an empty set so we don't come here again
-                }
-                UMICollisionResolutionMethod::None => {
-                    // handled above, but technically still a case here
-                    unreachable!();
-                }
-                _ => {
-                    // otherwise, we need to save this
-                    set.insert(pair.clone());
-                }
-            }
-            self.good_records += 1;
-            self.umi_bins.insert(umi.clone(), set);
-            return;
-        }
-
-        let set = self.umi_bins.get_mut(umi).unwrap();
-
-        // TODO: quality vote resolution
         match self.collision_resolution_method {
-            UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
-                // just handle it later somehow
-                set.insert(pair.clone());
-            }
-            UMICollisionResolutionMethod::KeepFirst => {}  // drop the new record
-            UMICollisionResolutionMethod::KeepLast => {
-                set.clear();
-                set.insert(pair.clone());
-            }
-            UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
-            UMICollisionResolutionMethod::KeepLongestExtend => {
-                // slightly inefficient; but old must survive the clear
-                // todo: find a way to not copy this memory
-                let old = set.iter().next().unwrap().clone();
+            UMICollisionResolutionMethod::None => {
+                // special case: no comparison, etc., just go straight to disk
+                self.good_records += 1;
 
-                set.clear();
-                set.insert((
-                    self.collision_resolution_method._compare_for_extension(&old.0, &pair.0),
-                    self.collision_resolution_method._compare_for_extension(&old.1, &pair.1)
-                ));
+                // write the record, add UMI
+                let id_prefix = match umi.len() {
+                    0 => "",
+                    _ => std::str::from_utf8(umi).unwrap()
+                };
+                let pair_new = (
+                    fastq::Record::with_attrs(
+                        &*(id_prefix.to_owned() + " " + std::str::from_utf8(pair.0.name()).unwrap()),
+                        pair.0.desc(),
+                        &*pair.0.seq(),
+                        &*pair.0.qual(),
+                    ),
+                    fastq::Record::with_attrs(
+                        &*(id_prefix.to_owned() + " " + std::str::from_utf8(pair.1.name()).unwrap()),
+                        pair.1.desc(),
+                        &*pair.1.seq(),
+                        &*pair.1.qual(),
+                    )
+                );
+                self.write_pair(pair_new);
+            }
+            _ => {
+                if !self.umi_bins.contains_key(umi) {
+                    let mut set = HashSet::<FastqPair>::new();
+                    match self.collision_resolution_method {
+                        UMICollisionResolutionMethod::None => {
+                            // handled above, but technically still a case here
+                            unreachable!();
+                        }
+                        UMICollisionResolutionMethod::KeepFirst => {
+                            // write the record immediately; save memory
+                            self.write_pair(pair.clone());
+                            // save an empty set so we don't come here again
+                        }
+                        UMICollisionResolutionMethod::QualityVote => {
+                            // submit the "ballots" and save to disk later
+                            // here, an empty set will also be used to take note of the UMI bin
+                            todo!();
+                        }
+                        _ => {
+                            // otherwise, we need to save this
+                            set.insert(pair.clone());
+                        }
+                    }
+                    // count the good record once for all these cases it could be overridden but the +1 will not change
+                    self.good_records += 1;
+                    // whatever we decided to put in the set (if anything), save it
+                    self.umi_bins.insert(umi.clone(), set);
+                } else {
+                    let set = self.umi_bins.get_mut(umi).unwrap();
+
+                    match self.collision_resolution_method {
+                        UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
+                            // just handle it later somehow
+                            set.insert(pair.clone());
+                        }
+                        UMICollisionResolutionMethod::KeepFirst => {}  // drop the new record
+                        UMICollisionResolutionMethod::KeepLast => {
+                            set.clear();
+                            set.insert(pair.clone());
+                        }
+                        UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
+                        UMICollisionResolutionMethod::KeepLongestExtend => {
+                            // slightly inefficient; but old must survive the clear
+                            // todo: find a way to not copy this memory
+                            let old = set.iter().next().unwrap().clone();
+
+                            set.clear();
+                            set.insert((
+                                self.collision_resolution_method._compare_for_extension(&old.0, &pair.0),
+                                self.collision_resolution_method._compare_for_extension(&old.1, &pair.1)
+                            ));
+                        }
+                    }
+                }
             }
         }
     }
