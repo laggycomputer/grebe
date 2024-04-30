@@ -58,7 +58,6 @@ impl ValueEnum for UMICollisionResolutionMethod {
         &Self::VARIANTS
     }
 
-    // TODO: respect these
     fn to_possible_value(&self) -> Option<PossibleValue> {
         Some(match self {
             Self::None => PossibleValue::new("none")
