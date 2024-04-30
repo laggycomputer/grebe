@@ -120,20 +120,19 @@ impl PairHandler {
         ).expect("couldn't write out a reverse record");
     }
 
-    pub(crate) fn insert_pair(
-        &mut self, umi: &Vec<u8>, new: &FastqPair) {
+    pub(crate) fn insert_pair(&mut self, umi: &Vec<u8>, pair: &FastqPair) {
         if !self.umi_bins.contains_key(umi) {
             let mut set = HashSet::<FastqPair>::new();
             // TODO: immediately save for --crm none, too
             match self.collision_resolution_method {
                 UMICollisionResolutionMethod::KeepFirst => {
                     // write the record immediately; save memory
-                    self.write_pair(new.clone());
+                    self.write_pair(pair.clone());
                     // save an empty set so we don't come here again
                 }
                 _ => {
                     // otherwise, we need to save this
-                    set.insert(new.clone());
+                    set.insert(pair.clone());
                 }
             }
             self.good_records += 1;
@@ -147,12 +146,12 @@ impl PairHandler {
         match self.collision_resolution_method {
             UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
                 // just handle it later somehow
-                set.insert(new.clone());
+                set.insert(pair.clone());
             }
             UMICollisionResolutionMethod::KeepFirst => {}  // drop the new record
             UMICollisionResolutionMethod::KeepLast => {
                 set.clear();
-                set.insert(new.clone());
+                set.insert(pair.clone());
             }
             UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
             UMICollisionResolutionMethod::KeepLongestExtend => {
@@ -162,8 +161,8 @@ impl PairHandler {
 
                 set.clear();
                 set.insert((
-                    self.collision_resolution_method._compare_for_extension(&old.0, &new.0),
-                    self.collision_resolution_method._compare_for_extension(&old.1, &new.1)
+                    self.collision_resolution_method._compare_for_extension(&old.0, &pair.0),
+                    self.collision_resolution_method._compare_for_extension(&old.1, &pair.1)
                 ));
             }
         }
