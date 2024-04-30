@@ -121,14 +121,46 @@ impl PairHandler {
     }
 
     pub(crate) fn insert_pair(&mut self, umi: &Vec<u8>, pair: &FastqPair) {
+        // special case: no comparison, etc., just go straight to disk
+        if self.collision_resolution_method == UMICollisionResolutionMethod::None {
+            self.good_records += 1;
+
+            // write the record, add UMI
+            let id_prefix = match umi.len() {
+                0 => "",
+                _ => std::str::from_utf8(umi).unwrap()
+            };
+            let pair_new = (
+                fastq::Record::with_attrs(
+                    &*(id_prefix.to_owned() + " " + std::str::from_utf8(pair.0.name()).unwrap()),
+                    pair.0.desc(),
+                    &*pair.0.seq(),
+                    &*pair.0.qual(),
+                ),
+                fastq::Record::with_attrs(
+                    &*(id_prefix.to_owned() + " " + std::str::from_utf8(pair.1.name()).unwrap()),
+                    pair.1.desc(),
+                    &*pair.1.seq(),
+                    &*pair.1.qual(),
+                )
+            );
+            self.write_pair(pair_new);
+
+            // just bail; nothing to insert, etc. because UMI has already been matched
+            return;
+        }
+
         if !self.umi_bins.contains_key(umi) {
             let mut set = HashSet::<FastqPair>::new();
-            // TODO: immediately save for --crm none, too
             match self.collision_resolution_method {
                 UMICollisionResolutionMethod::KeepFirst => {
                     // write the record immediately; save memory
                     self.write_pair(pair.clone());
                     // save an empty set so we don't come here again
+                }
+                UMICollisionResolutionMethod::None => {
+                    // handled above, but technically still a case here
+                    unreachable!();
                 }
                 _ => {
                     // otherwise, we need to save this
@@ -172,10 +204,10 @@ impl PairHandler {
         for (umi, pairs) in
         <HashMap<Vec<u8>, HashSet<(fastq::Record, fastq::Record)>> as Clone>::clone(&self.umi_bins).into_iter() {
             match self.collision_resolution_method {
-                UMICollisionResolutionMethod::KeepFirst => {
+                UMICollisionResolutionMethod::KeepFirst | UMICollisionResolutionMethod::None => {
                     // these records are already on disk
                 }
-                UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
+                UMICollisionResolutionMethod::QualityVote => {
                     todo!()
                 }
                 _ => {

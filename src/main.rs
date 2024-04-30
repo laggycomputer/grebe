@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::exit;
@@ -115,9 +115,9 @@ fn main() {
         ..Default::default()
     };
 
-    let start_index_arg = *args.get_one::<i64>("start-at").unwrap();
-    let start_index_rev = start_index_arg;
-    let start_index_fwr = max(start_index_arg, umi_length);
+    // let start_index_arg = *args.get_one::<i64>("start-at").unwrap();
+    // let start_index_rev = start_index_arg;
+    // let start_index_fwr = max(start_index_arg, umi_length);
 
     let levenshtein_max = min(*args.get_one::<i64>("levenshtein-radius").unwrap(), umi_length);
     if levenshtein_max >= umi_length && args.value_source("levenshtein-radius") == Some(ValueSource::CommandLine) {
@@ -154,10 +154,10 @@ fn main() {
             }
         };
 
-        if rec_fwr.seq().len() < (start_index_fwr + 1) as usize ||
-            rec_rev.seq().len() < (start_index_rev + 1) as usize {
-            continue;
-        }
+        // if rec_fwr.seq().len() < (start_index_fwr + 1) as usize ||
+        //     rec_rev.seq().len() < (start_index_rev + 1) as usize {
+        //     continue;
+        // }
 
         let all_ns = |s: &u8| *s == ('N' as u8);
         if rec_fwr.seq().iter().all(all_ns) || rec_rev.seq().iter().all(all_ns) {
@@ -207,6 +207,9 @@ fn main() {
                     }
                 }
             }
+        } else {
+            pair_handler.collision_resolution_method = UMICollisionResolutionMethod::None;
+            pair_handler.insert_pair(&vec![], &(rec_fwr, rec_rev));
         }
     }
 
