@@ -199,7 +199,7 @@ impl PairHandler {
         }
     }
 
-    pub(crate) fn save_all(&mut self) {
+    pub(crate) fn save_remaining(&mut self) {
         for (umi, pairs) in
         <HashMap<UMIVec, HashSet<(fastq::Record, fastq::Record)>> as Clone>::clone(&self.umi_bins).into_iter() {
             match self.collision_resolution_method {

@@ -222,7 +222,7 @@ fn main() {
              pluralize("pair", pair_handler.total_records as isize, true),
              pluralize("pair", pair_handler.good_records as isize, true));
 
-    pair_handler.save_all();
+    pair_handler.save_remaining();
     // TODO: verbose logging (masked reads, etc.)
     // TODO: exit codes
     // TODO: do things on quality scores
