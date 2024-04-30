@@ -168,7 +168,7 @@ impl PairHandler {
                             // here, an empty set will also be used to take note of the UMI bin
                             todo!();
                         }
-                        // unspecial cases: full comparison with the contents of `umi_bins` is necessary
+                        // un-special cases: full comparison with the contents of `umi_bins` is necessary
                         _ => {
                             // otherwise, we need to save this
                             set.insert(pair.clone());
@@ -186,7 +186,7 @@ impl PairHandler {
                         UMICollisionResolutionMethod::KeepFirst => {
                             // already handled above, no need for anything involving the set
                         }
-                        // unspecial cases, again
+                        // un-special cases, again
                         UMICollisionResolutionMethod::KeepLast => {
                             // always replace, without any checks
                             set.clear();
