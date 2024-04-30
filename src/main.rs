@@ -145,14 +145,26 @@ fn main() {
         bar.inc(1);
 
         let rec_fwr = match rec_fwr {
-            Ok(result) => result,
+            Ok(result) => match result.check() {
+                Ok(_) => result,
+                Err(err) => {
+                    eprintln!("forward record {} was invalid: {err}", pair_handler.total_records);
+                    exit(1);
+                }
+            },
             Err(_) => {
                 eprintln!("forward record {} was invalid", pair_handler.total_records);
                 exit(1);
             }
         };
         let rec_rev = match rec_rev {
-            Ok(result) => result,
+            Ok(result) => match result.check() {
+                Ok(_) => result,
+                Err(err) => {
+                    eprintln!("reverse record {} was invalid: {err}", pair_handler.total_records);
+                    exit(1);
+                }
+            },
             Err(_) => {
                 eprintln!("reverse record {} was invalid", pair_handler.total_records);
                 exit(1);
