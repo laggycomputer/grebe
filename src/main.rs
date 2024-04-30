@@ -53,9 +53,11 @@ impl ValueEnum for UMICollisionResolutionMethod {
                 .alias("klr")
                 .help("keep the longest sequence matched, favor the later sequence when tied"),
             UMICollisionResolutionMethod::KeepLongestExtend => PossibleValue::new("keep-longest-extend")
+                .alias("extend")
                 .alias("kl-extend")
                 .alias("kle")
-                .help("keep the longest sequence, overwrite it if a longer, later read agrees completely"),
+                .help("keep the longest sequence, overwrite it if a read found later is longer and agrees completely \
+                on base calls"),
             UMICollisionResolutionMethod::QualityVote => PossibleValue::new("quality-vote")
                 .alias("quality-voting")
                 .alias("qv")
