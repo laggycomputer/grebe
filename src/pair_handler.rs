@@ -180,11 +180,10 @@ impl PairHandler {
                     let set = self.umi_bins.get_mut(umi).unwrap();
 
                     match self.collision_resolution_method {
-                        UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
-                            // just handle it later somehow
-                            set.insert(pair.clone());
+                        UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote |
+                        UMICollisionResolutionMethod::KeepFirst => {
+                            // already handled above, no need for anything involving the set
                         }
-                        UMICollisionResolutionMethod::KeepFirst => {}  // drop the new record
                         UMICollisionResolutionMethod::KeepLast => {
                             set.clear();
                             set.insert(pair.clone());
