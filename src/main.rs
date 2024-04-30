@@ -7,7 +7,7 @@ use clap::{ArgGroup, ValueEnum, ValueHint};
 use clap::builder::PossibleValue;
 use clap::parser::ValueSource;
 use editdistancek::edit_distance_bounded;
-use indicatif::ProgressBar;
+use indicatif::{ProgressBar, ProgressFinish};
 use itertools::Itertools;
 use pluralizer::pluralize;
 use strum::VariantArray;
@@ -180,7 +180,8 @@ fn main() {
         None => levenshtein_max <= 2
     };
 
-    let bar = ProgressBar::new(total_records as u64);
+    let bar = ProgressBar::new(total_records as u64).with_finish(ProgressFinish::AndLeave);
+
     let pairs = record_readers.0.records().zip(record_readers.1.records());
     'pairs: for (rec_fwr, rec_rev) in pairs {
         bar.inc(1);
@@ -270,6 +271,8 @@ fn main() {
             pair_handler.insert_pair(&vec![], &(rec_fwr, rec_rev));
         }
     }
+
+    bar.finish_using_style();
 
     println!("filtered {} down to {}; writing remaining records to disk...",
              pluralize("pair", pair_handler.total_records as isize, true),
