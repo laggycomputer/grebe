@@ -230,7 +230,7 @@ fn main() {
         }
     }
 
-    println!("filtered {} down to {}; writing to disk...",
+    println!("filtered {} down to {}; writing remaining records to disk...",
              pluralize("pair", pair_handler.total_records as isize, true),
              pluralize("pair", pair_handler.good_records as isize, true));
 
