@@ -10,7 +10,7 @@ use clap::ValueEnum;
 use strum::VariantArray;
 use strum_macros::VariantArray;
 
-use crate::FastqPair;
+use crate::types::{FastqPair, UMIVec};
 use crate::writer::WriterMaybeGzip;
 
 #[derive(Clone, Copy, PartialEq, VariantArray)]
@@ -82,7 +82,7 @@ impl ValueEnum for UMICollisionResolutionMethod {
 pub(crate) struct PairHandler {
     pub(crate) record_writers: (fastq::Writer<WriterMaybeGzip>, fastq::Writer<WriterMaybeGzip>),
     pub(crate) collision_resolution_method: UMICollisionResolutionMethod,
-    pub(crate) umi_bins: HashMap<Vec<u8>, HashSet<FastqPair>>,
+    pub(crate) umi_bins: HashMap<UMIVec, HashSet<FastqPair>>,
     pub(crate) total_records: usize,
     pub(crate) good_records: usize,
 }
@@ -119,7 +119,7 @@ impl PairHandler {
         ).expect("couldn't write out a reverse record");
     }
 
-    pub(crate) fn insert_pair(&mut self, umi: &Vec<u8>, pair: &FastqPair) {
+    pub(crate) fn insert_pair(&mut self, umi: &UMIVec, pair: &FastqPair) {
         // special case: no comparison, etc., just go straight to disk
         if self.collision_resolution_method == UMICollisionResolutionMethod::None {
             self.good_records += 1;
@@ -201,7 +201,7 @@ impl PairHandler {
 
     pub(crate) fn save_all(&mut self) {
         for (umi, pairs) in
-        <HashMap<Vec<u8>, HashSet<(fastq::Record, fastq::Record)>> as Clone>::clone(&self.umi_bins).into_iter() {
+        <HashMap<UMIVec, HashSet<(fastq::Record, fastq::Record)>> as Clone>::clone(&self.umi_bins).into_iter() {
             match self.collision_resolution_method {
                 UMICollisionResolutionMethod::KeepFirst | UMICollisionResolutionMethod::None => {
                     // these records are already on disk

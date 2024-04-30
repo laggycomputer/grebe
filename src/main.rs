@@ -3,7 +3,6 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::exit;
 
-use bio::io::fastq;
 use clap::{ArgGroup, ValueHint};
 use clap::parser::ValueSource;
 use editdistancek::edit_distance_bounded;
@@ -11,17 +10,19 @@ use indicatif::ProgressBar;
 use itertools::Itertools;
 use pluralizer::pluralize;
 
+use types::FastqPair;
+
 use crate::pair_handler::{PairHandler, UMICollisionResolutionMethod};
 use crate::reader::make_reader_pair;
+use crate::types::UMIVec;
 
 mod pair_handler;
 mod reader;
 mod writer;
+mod types;
 
-type FastqPair = (fastq::Record, fastq::Record);
-
-fn find_within_radius(umi_bins: &HashMap<Vec<u8>, HashSet<FastqPair>>, umi: &Vec<u8>, radius: usize)
-                      -> Option<Vec<u8>> {
+fn find_within_radius(umi_bins: &HashMap<UMIVec, HashSet<FastqPair>>, umi: &UMIVec, radius: usize)
+                      -> Option<UMIVec> {
     umi_bins.keys().find(|proposed_umi| edit_distance_bounded(proposed_umi, umi, radius).is_some()).cloned()
 }
 
@@ -169,7 +170,7 @@ fn main() {
         }
 
         if umi_length > 0 {
-            let umi: Vec<u8> = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
+            let umi: UMIVec = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
                 pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
             } else {
