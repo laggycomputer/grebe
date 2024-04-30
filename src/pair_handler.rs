@@ -5,10 +5,7 @@ use std::io::BufWriter;
 
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
-use clap::builder::PossibleValue;
-use clap::ValueEnum;
 use itertools::Itertools;
-use strum::VariantArray;
 use strum_macros::VariantArray;
 
 use crate::types::{BaseQualityVotes, FastqPair, QualityVoteTotal, QualityVoteVec, UMIVec};
