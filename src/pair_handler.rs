@@ -190,15 +190,13 @@ impl PairHandler {
                         }
                         UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
                         UMICollisionResolutionMethod::KeepLongestExtend => {
-                            // slightly inefficient; but old must survive the clear
-                            // todo: find a way to not copy this memory
-                            let old = set.iter().next().unwrap().clone();
+                            let old = set.iter().next().unwrap();
 
-                            set.clear();
                             set.insert((
                                 self.collision_resolution_method._compare_for_extension(&old.0, &pair.0),
                                 self.collision_resolution_method._compare_for_extension(&old.1, &pair.1)
                             ));
+                            set.remove(&old);
                         }
                     }
                 }
