@@ -57,6 +57,7 @@ pub(crate) struct PairHandler {
     pub(crate) umi_bins: HashMap<UMIVec, HashSet<FastqPair>>,
     pub(crate) total_records: usize,
     pub(crate) good_records: usize,
+    pub(crate) records_written: usize,
     // ATCG order, only populated if --crm quality-vote
     pub(crate) quality_votes: HashMap<UMIVec, (QualityVoteVec, QualityVoteVec)>,
 }
@@ -71,6 +72,7 @@ impl Default for PairHandler {
             umi_bins: Default::default(),
             total_records: 0,
             good_records: 0,
+            records_written: 0,
             quality_votes: Default::default(),
         }
     }
@@ -78,7 +80,19 @@ impl Default for PairHandler {
 
 impl PairHandler {
     pub(crate) fn write_pair(&mut self, pair: FastqPair) {
-        // TODO: reimplement slicing etc
+        // TODO: reimplement slicing etc; increment some kind of dropped record counter
+        self.records_written += 1;
+
+        // if rec_fwr.seq().len() < (start_index_fwr + 1) as usize ||
+        //     rec_rev.seq().len() < (start_index_rev + 1) as usize {
+        //     continue;
+        // }
+
+        // let all_ns = |s: &u8| *s == ('N' as u8);
+        // if rec_fwr.seq().iter().all(all_ns) || rec_rev.seq().iter().all(all_ns) {
+        //     continue;
+        // }
+
         self.record_writers.0.write(
             std::str::from_utf8(pair.0.name()).unwrap(),
             Option::from(pair.0.id()),

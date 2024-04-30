@@ -215,16 +215,6 @@ fn main() {
             }
         };
 
-        // if rec_fwr.seq().len() < (start_index_fwr + 1) as usize ||
-        //     rec_rev.seq().len() < (start_index_rev + 1) as usize {
-        //     continue;
-        // }
-
-        let all_ns = |s: &u8| *s == ('N' as u8);
-        if rec_fwr.seq().iter().all(all_ns) || rec_rev.seq().iter().all(all_ns) {
-            continue;
-        }
-
         if umi_length > 0 {
             let umi: UMIVec = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
@@ -279,9 +269,22 @@ fn main() {
 
     bar.finish_using_style();
 
-    println!("filtered {} down to {}; writing remaining records to disk...",
-             pluralize("pair", pair_handler.total_records as isize, true),
-             pluralize("pair", pair_handler.good_records as isize, true));
+    if umi_length > 0 {
+        if pair_handler.records_written > 0 {
+            println!("filtered {} down to {} via UMI, wrote {} after pair-level filtering",
+                     pluralize("pair", pair_handler.total_records as isize, true),
+                     pluralize("pair", pair_handler.good_records as isize, true),
+                     pluralize("pair", pair_handler.records_written as isize, true))
+        } else {
+            println!("filtered {} down to {} via UMI; writing to disk...",
+                     pluralize("pair", pair_handler.total_records as isize, true),
+                     pluralize("pair", pair_handler.good_records as isize, true));
+        }
+    } else {
+        println!("processed {}, wrote {} after pair-level filtering",
+                 pluralize("pair", pair_handler.total_records as isize, true),
+                 pluralize("pair", pair_handler.records_written as isize, true))
+    }
 
     pair_handler.save_remaining();
     // TODO: verbose logging (masked reads, etc.)
