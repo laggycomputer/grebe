@@ -85,8 +85,8 @@ pub(crate) struct PairHandler {
     pub(crate) umi_bins: HashMap<UMIVec, HashSet<FastqPair>>,
     pub(crate) total_records: usize,
     pub(crate) good_records: usize,
-    // ATCG
-    pub(crate) quality_votes: Option<HashMap<UMIVec, (usize, usize, usize, usize)>>,
+    // ATCG order, only populated if --crm quality-vote
+    pub(crate) quality_votes: HashMap<UMIVec, Vec<(usize, usize, usize, usize)>>,
 }
 
 impl Default for PairHandler {
@@ -124,7 +124,7 @@ impl PairHandler {
 
     pub(crate) fn insert_pair(&mut self, umi: &UMIVec, pair: &FastqPair) {
         match self.collision_resolution_method {
-            // very special case: no comparison, etc., just go straight to disk
+            // special case: no comparison, etc., just go straight to disk
             UMICollisionResolutionMethod::None => {
                 self.good_records += 1;
 
@@ -149,12 +149,17 @@ impl PairHandler {
                 );
                 self.write_pair(pair_new);
             }
+            // special case: no set, need to update the map every time anyway
+            UMICollisionResolutionMethod::QualityVote => {
+                // submit the "ballots" and save to disk later
+                todo!();
+            }
             _ => {
                 if !self.umi_bins.contains_key(umi) {
                     let mut set = HashSet::<FastqPair>::new();
                     match self.collision_resolution_method {
-                        UMICollisionResolutionMethod::None => {
-                            // handled above, but technically still a case here
+                        UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::QualityVote => {
+                            // handled above, but technically still a case here; nothing needs to be done down here
                             unreachable!();
                         }
                         // special cases: `umi_bins` is involved but only to indicate a UMI has been seen
@@ -162,11 +167,6 @@ impl PairHandler {
                             // write the record immediately; save memory
                             self.write_pair(pair.clone());
                             // save an empty set so we don't come here again
-                        }
-                        UMICollisionResolutionMethod::QualityVote => {
-                            // submit the "ballots" and save to disk later
-                            // here, an empty set will also be used to take note of the UMI bin
-                            todo!();
                         }
                         // un-special cases: full comparison with the contents of `umi_bins` is necessary
                         _ => {
