@@ -256,6 +256,9 @@ fn main() {
                     // no proposed alternative was satisfactory; we have a new UMI
                     pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
                 } else {
+                    // non-proactive mode; just check every known UMI and see if it's close enough
+
+                    // check for perfect match first
                     if pair_handler.umi_bins.contains_key(&umi) {
                         pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
                     } else {
