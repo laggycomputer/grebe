@@ -7,6 +7,7 @@ use bio::io::fastq;
 use clap::{ArgGroup, ValueHint};
 use clap::parser::ValueSource;
 use editdistancek::edit_distance_bounded;
+use indicatif::ProgressBar;
 use itertools::Itertools;
 use pluralizer::pluralize;
 
@@ -137,8 +138,11 @@ fn main() {
         None => levenshtein_max <= 2
     };
 
+    let bar = ProgressBar::new(total_records as u64);
     let pairs = record_readers.0.records().zip(record_readers.1.records());
     'pairs: for (rec_fwr, rec_rev) in pairs {
+        bar.inc(1);
+
         let rec_fwr = match rec_fwr {
             Ok(result) => result,
             Err(_) => {
@@ -218,7 +222,6 @@ fn main() {
              pluralize("pair", pair_handler.good_records as isize, true));
 
     pair_handler.save_all();
-    // TODO: count records before starting and give progress indication
     // TODO: verbose logging (masked reads, etc.)
     // TODO: exit codes
     // TODO: do things on quality scores
