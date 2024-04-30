@@ -216,7 +216,6 @@ fn main() {
 
     pair_handler.save_all();
     // TODO: count records before starting and give progress indication
-    // TODO: stop assuming forward and reverse reads appear in the proper order
     // TODO: verbose logging (masked reads, etc.)
     // TODO: exit codes
     // TODO: do things on quality scores
