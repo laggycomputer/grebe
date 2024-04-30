@@ -187,12 +187,12 @@ impl PairHandler {
                         UMICollisionResolutionMethod::KeepLongestExtend => {
                             // this clone isn't the best but meh
                             let old = set.iter().next().unwrap().clone();
+                            set.remove(&old);
 
                             set.insert((
                                 self.collision_resolution_method._compare_for_extension(&old.0, &pair.0),
                                 self.collision_resolution_method._compare_for_extension(&old.1, &pair.1)
                             ));
-                            set.remove(&old);
                         }
                     }
                 }
@@ -264,13 +264,13 @@ impl PairHandler {
                             std::str::from_utf8(&*umi).unwrap(),
                             Option::from("constructed by grebe from quality voting"),
                             &*resolved.0,
-                            &*iter::repeat(b"~").take(resolved.0.len()).map(|x| x[0]).collect::<Vec<u8>>()
+                            &*iter::repeat(b"~").take(resolved.0.len()).map(|x| x[0]).collect::<Vec<u8>>(),
                         ),
                         fastq::Record::with_attrs(
                             std::str::from_utf8(&*umi).unwrap(),
                             Option::from("constructed by grebe from quality voting"),
                             &*resolved.1,
-                            &*iter::repeat(b"~").take(resolved.1.len()).map(|x| x[0]).collect::<Vec<u8>>()
+                            &*iter::repeat(b"~").take(resolved.1.len()).map(|x| x[0]).collect::<Vec<u8>>(),
                         )
                     ));
                 }
