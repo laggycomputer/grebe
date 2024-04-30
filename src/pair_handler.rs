@@ -54,44 +54,6 @@ impl UMICollisionResolutionMethod {
     }
 }
 
-impl ValueEnum for UMICollisionResolutionMethod {
-    fn value_variants<'a>() -> &'a [Self] {
-        &Self::VARIANTS
-    }
-
-    fn to_possible_value(&self) -> Option<PossibleValue> {
-        Some(match self {
-            Self::None => PossibleValue::new("none")
-                .help("keep duplicates, prepend their assigned UMI to their sequence names"),
-            UMICollisionResolutionMethod::KeepFirst => PossibleValue::new("keep-first")
-                .alias("keep-left")
-                .alias("kl")
-                .help("keep the first sequence matched to this UMI, ignore any sequences that follow"),
-            UMICollisionResolutionMethod::KeepLast => PossibleValue::new("keep-last")
-                .alias("keep-right")
-                .alias("kr")
-                .help("keep the last sequence matched, ignore any sequences that come before"),
-            UMICollisionResolutionMethod::KeepLongestLeft => PossibleValue::new("keep-longest-left")
-                .alias("kl-left")
-                .alias("kll")
-                .help("keep the longest sequence matched, favor the earlier sequence when tied"),
-            UMICollisionResolutionMethod::KeepLongestRight => PossibleValue::new("keep-longest-right")
-                .alias("kl-right")
-                .alias("klr")
-                .help("keep the longest sequence matched, favor the later sequence when tied"),
-            UMICollisionResolutionMethod::KeepLongestExtend => PossibleValue::new("keep-longest-extend")
-                .alias("kl-extend")
-                .alias("kle")
-                .help("keep the longest sequence, overwrite it if a longer, later read agrees completely"),
-            UMICollisionResolutionMethod::QualityVote => PossibleValue::new("quality-vote")
-                .alias("quality-voting")
-                .alias("qv")
-                .help("create one final sequence by combining base calls and qualities from all matched reads"),
-        })
-    }
-}
-
-
 pub(crate) struct PairHandler {
     pub(crate) record_writers: (fastq::Writer<WriterMaybeGzip>, fastq::Writer<WriterMaybeGzip>),
     pub(crate) collision_resolution_method: UMICollisionResolutionMethod,

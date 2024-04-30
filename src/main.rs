@@ -3,14 +3,16 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::exit;
 
-use clap::{ArgGroup, ValueHint};
+use clap::{ArgGroup, ValueEnum, ValueHint};
+use clap::builder::PossibleValue;
 use clap::parser::ValueSource;
 use editdistancek::edit_distance_bounded;
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use pluralizer::pluralize;
-use pair_handler::UMICollisionResolutionMethod;
+use strum::VariantArray;
 
+use pair_handler::UMICollisionResolutionMethod;
 use types::FastqPair;
 
 use crate::pair_handler::PairHandler;
@@ -26,6 +28,42 @@ fn find_within_radius(umi_bins: &HashMap<UMIVec, HashSet<FastqPair>>, umi: &UMIV
                       -> Option<UMIVec> {
     umi_bins.keys().find(|proposed_umi| edit_distance_bounded(proposed_umi, umi, radius).is_some()).cloned()
 }
+
+impl ValueEnum for UMICollisionResolutionMethod {
+    fn value_variants<'a>() -> &'a [Self] { &Self::VARIANTS }
+
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        Some(match self {
+            Self::None => PossibleValue::new("none")
+                .help("keep duplicates, prepend their assigned UMI to their sequence names"),
+            UMICollisionResolutionMethod::KeepFirst => PossibleValue::new("keep-first")
+                .alias("keep-left")
+                .alias("kl")
+                .help("keep the first sequence matched to this UMI, ignore any sequences that follow"),
+            UMICollisionResolutionMethod::KeepLast => PossibleValue::new("keep-last")
+                .alias("keep-right")
+                .alias("kr")
+                .help("keep the last sequence matched, ignore any sequences that come before"),
+            UMICollisionResolutionMethod::KeepLongestLeft => PossibleValue::new("keep-longest-left")
+                .alias("kl-left")
+                .alias("kll")
+                .help("keep the longest sequence matched, favor the earlier sequence when tied"),
+            UMICollisionResolutionMethod::KeepLongestRight => PossibleValue::new("keep-longest-right")
+                .alias("kl-right")
+                .alias("klr")
+                .help("keep the longest sequence matched, favor the later sequence when tied"),
+            UMICollisionResolutionMethod::KeepLongestExtend => PossibleValue::new("keep-longest-extend")
+                .alias("kl-extend")
+                .alias("kle")
+                .help("keep the longest sequence, overwrite it if a longer, later read agrees completely"),
+            UMICollisionResolutionMethod::QualityVote => PossibleValue::new("quality-vote")
+                .alias("quality-voting")
+                .alias("qv")
+                .help("create one final sequence by combining base calls and qualities from all matched reads"),
+        })
+    }
+}
+
 
 fn main() {
     let cmd = clap::command!("grebe")
