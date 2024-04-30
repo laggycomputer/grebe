@@ -250,7 +250,7 @@ impl PairHandler {
                 b'T' => votes.0.get_mut(ind).unwrap().1 += *qual as QualityVoteTotal,
                 b'C' => votes.0.get_mut(ind).unwrap().2 += *qual as QualityVoteTotal,
                 b'G' => votes.0.get_mut(ind).unwrap().3 += *qual as QualityVoteTotal,
-                b'N' => {},  // this read abstains for this base
+                b'N' => {}  // this read abstains for this base
                 _ => unimplemented!()
             }
         }
@@ -263,7 +263,7 @@ impl PairHandler {
                 b'T' => votes.1.get_mut(ind).unwrap().1 += *qual as QualityVoteTotal,
                 b'C' => votes.1.get_mut(ind).unwrap().2 += *qual as QualityVoteTotal,
                 b'G' => votes.1.get_mut(ind).unwrap().3 += *qual as QualityVoteTotal,
-                b'N' => {},  // this read abstains for this base
+                b'N' => {}  // this read abstains for this base
                 _ => unimplemented!()
             }
         }
@@ -298,8 +298,22 @@ impl PairHandler {
                     };
                     let resolved: (Vec<u8>, Vec<u8>) = (
                         votes.0.iter().map(count_votes).collect(), votes.1.iter().map(count_votes).collect());
-                    println!("{:?}", resolved);
-                    todo!()
+
+                    // this quality score is entirely fake
+                    self.write_pair((
+                        fastq::Record::with_attrs(
+                            std::str::from_utf8(&*umi).unwrap(),
+                            Option::from("constructed by grebe from quality voting"),
+                            &*resolved.0,
+                            &*iter::repeat(b"~").take(resolved.0.len()).map(|x| x[0]).collect::<Vec<u8>>()
+                        ),
+                        fastq::Record::with_attrs(
+                            std::str::from_utf8(&*umi).unwrap(),
+                            Option::from("constructed by grebe from quality voting"),
+                            &*resolved.1,
+                            &*iter::repeat(b"~").take(resolved.1.len()).map(|x| x[0]).collect::<Vec<u8>>()
+                        )
+                    ));
                 }
                 _ => {
                     // conflict resolution has already selected a single read
