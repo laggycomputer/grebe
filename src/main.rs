@@ -39,7 +39,7 @@ fn main() {
             .value_parser(clap::value_parser!(PathBuf))
             .value_hint(ValueHint::FilePath))
         .arg(clap::arg!(--"phred64" "use the legacy phred64 encoding (over phred33) where score 0 \
-        = \"@\" instead of \"1\"")
+        = \"@\" instead of \"!\"")
             .required(false)
             .default_value("false"))
         .arg(clap::arg!(-'u' <"UMI length"> "UMI length (strip this many bases off forward reads)")
