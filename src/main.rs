@@ -17,7 +17,7 @@ use types::FastqPair;
 
 use crate::pair_handler::PairHandler;
 use crate::reader::make_reader_pair;
-use crate::types::{OutputWriters, UMIVec};
+use crate::types::{OutputWriters, UMIVec, WhichRead};
 
 mod pair_handler;
 mod reader;
@@ -162,7 +162,7 @@ fn main() {
         unpaired: writer::make_writer_pair((
             args.get_one::<PathBuf>("out-unpaired-forward"),
             args.get_one::<PathBuf>("out-unpaired-reverse")
-        ))
+        )),
     };
 
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
@@ -172,7 +172,7 @@ fn main() {
     let mut pair_handler = PairHandler {
         record_writers,
         collision_resolution_method,
-        total_records,
+        records_total: total_records,
         ..Default::default()
     };
 
@@ -198,7 +198,7 @@ fn main() {
         None => levenshtein_max <= 2
     };
 
-    eprintln!("counted {}, working...", pluralize("pair", pair_handler.total_records as isize, true));
+    eprintln!("counted {}, working...", pluralize("pair", pair_handler.records_total as isize, true));
     let bar = ProgressBar::new(total_records as u64).with_finish(ProgressFinish::AndLeave);
 
     let pairs = record_readers.0.records().zip(record_readers.1.records());
@@ -209,12 +209,12 @@ fn main() {
             Ok(result) => match result.check() {
                 Ok(_) => result,
                 Err(err) => {
-                    eprintln!("forward record {} was invalid: {err}", pair_handler.total_records);
+                    eprintln!("forward record {} was invalid: {err}", pair_handler.records_total);
                     exit(1);
                 }
             },
             Err(_) => {
-                eprintln!("forward record {} was invalid", pair_handler.total_records);
+                eprintln!("forward record {} was invalid", pair_handler.records_total);
                 exit(1);
             }
         };
@@ -222,15 +222,32 @@ fn main() {
             Ok(result) => match result.check() {
                 Ok(_) => result,
                 Err(err) => {
-                    eprintln!("reverse record {} was invalid: {err}", pair_handler.total_records);
+                    eprintln!("reverse record {} was invalid: {err}", pair_handler.records_total);
                     exit(1);
                 }
             },
             Err(_) => {
-                eprintln!("reverse record {} was invalid", pair_handler.total_records);
+                eprintln!("reverse record {} was invalid", pair_handler.records_total);
                 exit(1);
             }
         };
+
+        let n_closure = |s: &u8| *s == b'N';
+        match (rec_fwr.seq().iter().all(n_closure), rec_rev.seq().iter().all(n_closure)) {
+            (true, false) => {
+                pair_handler.write_unpaired(rec_rev, WhichRead::REVERSE);
+                continue 'pairs;
+            }
+            (false, true) => {
+                pair_handler.write_unpaired(rec_fwr, WhichRead::FORWARD);
+                continue 'pairs;
+            }
+            (true, true) => {
+                // don't think this ever happens
+                continue 'pairs;
+            }
+            _ => {}
+        }
 
         if umi_length > 0 {
             let umi: UMIVec = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
@@ -289,18 +306,37 @@ fn main() {
     if umi_length > 0 {
         if pair_handler.records_written > 0 {
             println!("filtered down to {} via UMI, wrote {} after pair-level filtering",
-                     pluralize("pair", pair_handler.good_records as isize, true),
-                     pluralize("pair", pair_handler.records_written as isize, true))
+                     pluralize("pair", pair_handler.records_good as isize, true),
+                     pluralize("pair", pair_handler.records_written as isize, true));
         } else {
             println!("filtered down to {} via UMI; writing to disk...",
-                     pluralize("pair", pair_handler.good_records as isize, true));
+                     pluralize("pair", pair_handler.records_good as isize, true));
         }
     } else {
         println!("wrote {} after pair-level filtering",
-                 pluralize("pair", pair_handler.records_written as isize, true))
+                 pluralize("pair", pair_handler.records_written as isize, true));
     }
 
     pair_handler.save_remaining();
+
+    match (args.get_one::<PathBuf>("out-unpaired-forward").is_some(),
+           args.get_one::<PathBuf>("out-unpaired-reverse").is_some()) {
+        (true, true) => {
+            println!("also wrote {} and {}",
+                     pluralize("unpaired forward record", pair_handler.records_unpaired.0 as isize, true),
+                     pluralize("unpaired reverse record", pair_handler.records_unpaired.1 as isize, true));
+        }
+        (true, false) => {
+            println!("also wrote {}",
+                     pluralize("unpaired forward record", pair_handler.records_unpaired.0 as isize, true));
+        }
+        (false, true) => {
+            println!("also wrote {}",
+                     pluralize("unpaired reverse record", pair_handler.records_unpaired.1 as isize, true));
+        }
+        _ => {}
+    }
+
     // TODO: verbose logging (masked reads, etc.)
     // TODO: exit codes
     // TODO: do things on quality scores

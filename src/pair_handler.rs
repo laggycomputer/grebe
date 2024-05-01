@@ -8,7 +8,7 @@ use bio::io::fastq;
 use itertools::Itertools;
 use strum_macros::VariantArray;
 
-use crate::types::{BaseQualityVotes, FastqPair, OutputWriters, QualityVoteTotal, QualityVoteVec, UMIVec};
+use crate::types::{BaseQualityVotes, FastqPair, OutputWriters, QualityVoteTotal, QualityVoteVec, UMIVec, WhichRead};
 use crate::writer::WriterMaybeGzip;
 
 #[derive(Clone, Copy, PartialEq, VariantArray)]
@@ -55,9 +55,10 @@ pub(crate) struct PairHandler {
     pub(crate) record_writers: OutputWriters,
     pub(crate) collision_resolution_method: UMICollisionResolutionMethod,
     pub(crate) umi_bins: HashMap<UMIVec, HashSet<FastqPair>>,
-    pub(crate) total_records: usize,
-    pub(crate) good_records: usize,
+    pub(crate) records_total: usize,
+    pub(crate) records_good: usize,
     pub(crate) records_written: usize,
+    pub(crate) records_unpaired: (usize, usize),
     // ATCG order, only populated if --crm quality-vote
     pub(crate) quality_votes: HashMap<UMIVec, (QualityVoteVec, QualityVoteVec)>,
 }
@@ -77,9 +78,10 @@ impl Default for PairHandler {
             },
             collision_resolution_method: UMICollisionResolutionMethod::KeepFirst,
             umi_bins: Default::default(),
-            total_records: 0,
-            good_records: 0,
+            records_total: 0,
+            records_good: 0,
             records_written: 0,
+            records_unpaired: (0, 0),
             quality_votes: Default::default(),
         }
     }
@@ -92,11 +94,6 @@ impl PairHandler {
 
         // if rec_fwr.seq().len() < (start_index_fwr + 1) as usize ||
         //     rec_rev.seq().len() < (start_index_rev + 1) as usize {
-        //     continue;
-        // }
-
-        // let all_ns = |s: &u8| *s == ('N' as u8);
-        // if rec_fwr.seq().iter().all(all_ns) || rec_rev.seq().iter().all(all_ns) {
         //     continue;
         // }
 
@@ -115,11 +112,34 @@ impl PairHandler {
         ).expect("couldn't write out a reverse record");
     }
 
+    pub(crate) fn write_unpaired(&mut self, record: fastq::Record, which_read: WhichRead) {
+        match which_read {
+            WhichRead::FORWARD => {
+                self.records_unpaired.0 += 1;
+                self.record_writers.unpaired.0.write(
+                    std::str::from_utf8(record.name()).unwrap(),
+                    Option::from(record.id()),
+                    record.seq(),
+                    record.qual(),
+                ).expect("couldn't write out an unpaired forward record")
+            }
+            WhichRead::REVERSE => {
+                self.records_unpaired.1 += 1;
+                self.record_writers.unpaired.1.write(
+                    std::str::from_utf8(record.name()).unwrap(),
+                    Option::from(record.id()),
+                    record.seq(),
+                    record.qual(),
+                ).expect("couldn't write out an unpaired reverse record")
+            }
+        };
+    }
+
     pub(crate) fn insert_pair(&mut self, umi: &UMIVec, pair: &FastqPair) {
         match self.collision_resolution_method {
             // special case: no comparison, etc., just go straight to disk
             UMICollisionResolutionMethod::None => {
-                self.good_records += 1;
+                self.records_good += 1;
 
                 let umi_space = [String::from_utf8(umi.clone()).unwrap(), " ".parse().unwrap()].concat();
                 // write the record, add UMI
@@ -175,7 +195,7 @@ impl PairHandler {
                         }
                     }
                     // count the good record once for all these cases it could be overridden but the +1 will not change
-                    self.good_records += 1;
+                    self.records_good += 1;
                     // whatever we decided to put in the set (if anything), save it
                     self.umi_bins.insert(umi.clone(), set);
                 } else {

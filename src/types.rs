@@ -8,5 +8,9 @@ pub(crate) struct OutputWriters {
     pub(crate) paired: (fastq::Writer<WriterMaybeGzip>, fastq::Writer<WriterMaybeGzip>),
     pub(crate) unpaired: (fastq::Writer<WriterMaybeGzip>, fastq::Writer<WriterMaybeGzip>)
 }
+pub(crate) enum WhichRead {
+    FORWARD,
+    REVERSE
+}
 pub(crate) type BaseQualityVotes = (QualityVoteTotal, QualityVoteTotal, QualityVoteTotal, QualityVoteTotal);
 pub(crate) type QualityVoteVec = Vec<BaseQualityVotes>;
