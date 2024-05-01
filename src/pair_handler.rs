@@ -163,82 +163,83 @@ impl PairHandler {
                 );
                 self.write_pair(pair_new);
             }
-            _ => {
-                if !self.umi_bins.contains_key(umi) {
-                    let mut set = HashSet::<FastqPair>::new();
-                    match self.collision_resolution_method {
-                        UMICollisionResolutionMethod::None => {
-                            // handled above and returned to caller, nothing needs to be done down here
-                            unreachable!();
-                        }
-                        // special cases: `umi_bins` is involved but only to indicate a UMI has been seen
-                        UMICollisionResolutionMethod::QualityVote => {
-                            // create the "ballots" and save to disk later
-                            let mut votes = (
-                                Vec::<BaseQualityVotes>::new(), Vec::<BaseQualityVotes>::new()
-                            );
-                            votes.0.extend(iter::repeat((0, 0, 0, 0)).take(pair.0.len() - umi.len()));
-                            votes.1.extend(iter::repeat((0, 0, 0, 0)).take(pair.1.len()));
-
-                            Self::update_vote_vec(&mut votes, pair, umi.len());
-                            self.quality_votes.insert(umi.clone(), votes);
-                        }
-                        UMICollisionResolutionMethod::KeepFirst => {
-                            // write the record immediately; save memory
-                            self.write_pair(pair.clone());
-                            // save an empty set so we don't come here again
-                        }
-                        // un-special cases: full comparison with the contents of `umi_bins` is necessary
-                        _ => {
-                            // otherwise, we need to save this
-                            set.insert(pair.clone());
-                        }
+            _ if !self.umi_bins.contains_key(umi) => {
+                let mut set = HashSet::<FastqPair>::new();
+                match self.collision_resolution_method {
+                    UMICollisionResolutionMethod::None => {
+                        // handled above and returned to caller, nothing needs to be done down here
+                        unreachable!();
                     }
-                    // count the good record once for all these cases it could be overridden but the +1 will not change
-                    self.records_good += 1;
-                    // whatever we decided to put in the set (if anything), save it
-                    self.umi_bins.insert(umi.clone(), set);
-                } else {
-                    let set = self.umi_bins.get_mut(umi).unwrap();
+                    // special cases: `umi_bins` is involved but only to indicate a UMI has been seen
+                    UMICollisionResolutionMethod::QualityVote => {
+                        // create the "ballots" and save to disk later
+                        let mut votes = (
+                            Vec::<BaseQualityVotes>::new(), Vec::<BaseQualityVotes>::new()
+                        );
+                        votes.0.extend(iter::repeat((0, 0, 0, 0)).take(pair.0.len() - umi.len()));
+                        votes.1.extend(iter::repeat((0, 0, 0, 0)).take(pair.1.len()));
 
-                    match self.collision_resolution_method {
-                        UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::KeepFirst => {
-                            // already handled above, no need for anything involving the set
-                        }
-                        // need to do a bit
-                        UMICollisionResolutionMethod::QualityVote => {
-                            // update the "ballots"
-                            let mut votes = self.quality_votes.get_mut(umi).unwrap();
-                            // stretch to size sufficient to fit data
-                            votes.0.extend(
-                                iter::repeat((0, 0, 0, 0))
-                                    .take(max((pair.0.seq().len() - umi.len()).saturating_sub(votes.0.len()), 0)));
-                            votes.1.extend(
-                                iter::repeat((0, 0, 0, 0))
-                                    .take(max(pair.1.seq().len().saturating_sub(votes.1.len()), 0)));
+                        Self::update_vote_vec(&mut votes, pair, umi.len());
+                        self.quality_votes.insert(umi.clone(), votes);
+                    }
+                    UMICollisionResolutionMethod::KeepFirst => {
+                        // write the record immediately; save memory
+                        self.write_pair(pair.clone());
+                        // save an empty set so we don't come here again
+                    }
+                    // un-special cases: full comparison with the contents of `umi_bins` is necessary
+                    _ => {
+                        // otherwise, we need to save this
+                        set.insert(pair.clone());
+                    }
+                }
+                // count the good record once; for all these cases it could be overridden, but the +1 will not change
+                self.records_good += 1;
+                // whatever we decided to put in the set (if anything), save it
+                self.umi_bins.insert(umi.clone(), set);
+            }
+            // guard for readability only
+            _ if self.umi_bins.contains_key(umi) => {
+                let set = self.umi_bins.get_mut(umi).unwrap();
 
-                            Self::update_vote_vec(&mut votes, pair, umi.len());
-                        }
-                        // un-special cases, again
-                        UMICollisionResolutionMethod::KeepLast => {
-                            // always replace, without any checks
-                            set.clear();
-                            set.insert(pair.clone());
-                        }
-                        UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
-                        UMICollisionResolutionMethod::KeepLongestExtend => {
-                            // this clone isn't the best but meh
-                            let old = set.iter().next().unwrap().clone();
-                            set.remove(&old);
+                match self.collision_resolution_method {
+                    UMICollisionResolutionMethod::None | UMICollisionResolutionMethod::KeepFirst => {
+                        // already handled above, no need for anything involving the set
+                    }
+                    // need to do a bit
+                    UMICollisionResolutionMethod::QualityVote => {
+                        // update the "ballots"
+                        let mut votes = self.quality_votes.get_mut(umi).unwrap();
+                        // stretch to size sufficient to fit data
+                        votes.0.extend(
+                            iter::repeat((0, 0, 0, 0))
+                                .take(max((pair.0.seq().len() - umi.len()).saturating_sub(votes.0.len()), 0)));
+                        votes.1.extend(
+                            iter::repeat((0, 0, 0, 0))
+                                .take(max(pair.1.seq().len().saturating_sub(votes.1.len()), 0)));
 
-                            set.insert((
-                                self.collision_resolution_method._compare_for_extension(&old.0, &pair.0),
-                                self.collision_resolution_method._compare_for_extension(&old.1, &pair.1)
-                            ));
-                        }
+                        Self::update_vote_vec(&mut votes, pair, umi.len());
+                    }
+                    // un-special cases, again
+                    UMICollisionResolutionMethod::KeepLast => {
+                        // always replace, without any checks
+                        set.clear();
+                        set.insert(pair.clone());
+                    }
+                    UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
+                    UMICollisionResolutionMethod::KeepLongestExtend => {
+                        // this clone isn't the best but meh
+                        let old = set.iter().next().unwrap().clone();
+                        set.remove(&old);
+
+                        set.insert((
+                            self.collision_resolution_method._compare_for_extension(&old.0, &pair.0),
+                            self.collision_resolution_method._compare_for_extension(&old.1, &pair.1)
+                        ));
                     }
                 }
             }
+            _ => unreachable!()
         }
     }
 
