@@ -145,11 +145,10 @@ fn main() {
     let total_records = record_readers.0.records().count();
     let record_readers = make_reader_pair(input_paths, false);
 
-    let output_paths = (
+    let record_writers = writer::make_writer_pair((
         args.get_one::<PathBuf>("out-forward").unwrap(),
         args.get_one::<PathBuf>("out-reverse").unwrap()
-    );
-    let record_writers = writer::make_writer_pair(output_paths);
+    ));
 
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
 
