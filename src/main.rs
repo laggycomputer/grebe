@@ -12,14 +12,14 @@ use itertools::Itertools;
 use pluralizer::pluralize;
 use strum::VariantArray;
 
-use pair_handler::UMICollisionResolutionMethod;
+use pair_handling::UMICollisionResolutionMethod;
 use types::FastqPair;
 
-use crate::pair_handler::PairHandler;
+use crate::pair_handling::PairHandler;
 use crate::reader::make_reader_pair;
 use crate::types::{OutputWriters, UMIVec, WhichRead};
 
-mod pair_handler;
+mod pair_handling;
 mod reader;
 mod writer;
 mod types;
@@ -254,6 +254,11 @@ fn main() {
             if levenshtein_max == 0 {
                 pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
             } else {
+                if pair_handler.umi_bins.contains_key(&umi) {
+                    pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
+                    continue 'pairs;
+                }
+
                 if proactive_levenshtein {
                     // instead of checking the distance to elements of the set of known UMIs,
                     // generate UMIs within a certain distance and check them
@@ -284,14 +289,9 @@ fn main() {
                 } else {
                     // non-proactive mode; just check every known UMI and see if it's close enough
 
-                    // check for perfect match first
-                    if pair_handler.umi_bins.contains_key(&umi) {
-                        pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
-                    } else {
-                        match find_within_radius(&pair_handler.umi_bins, &umi, levenshtein_max as usize) {
-                            None => pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev)),
-                            Some(found) => pair_handler.insert_pair(&found, &(rec_fwr, rec_rev))
-                        }
+                    match find_within_radius(&pair_handler.umi_bins, &umi, levenshtein_max as usize) {
+                        None => pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev)),
+                        Some(found) => pair_handler.insert_pair(&found, &(rec_fwr, rec_rev))
                     }
                 }
             }
