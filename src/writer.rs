@@ -51,23 +51,26 @@ pub(crate) fn writer_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Writer<Wri
     }
 }
 
-pub(crate) fn writer_from_path(path_buf: &PathBuf) -> fastq::Writer<WriterMaybeGzip> {
-    match writer_maybe_gzip(path_buf) {
-        Ok((result, was_compressed)) => {
-            if was_compressed { eprintln!("info: writing {} as a gzip", path_buf.display()) }
-            result
-        }
-        Err(err) => {
-            match err.kind() {
-                ErrorKind::Other => eprintln!("refusing to overwrite nonempty file {}", path_buf.display()),
-                _ => eprintln!("couldn't open output {} for writing", path_buf.display())
+pub(crate) fn writer_from_path(maybe_path_buf: Option<&PathBuf>) -> fastq::Writer<WriterMaybeGzip> {
+    match maybe_path_buf {
+        Some(path_buf) => match writer_maybe_gzip(path_buf) {
+            Ok((result, was_compressed)) => {
+                if was_compressed { eprintln!("info: writing {} as a gzip", path_buf.display()) }
+                result
             }
-            exit(1);
-        }
+            Err(err) => {
+                match err.kind() {
+                    ErrorKind::Other => eprintln!("refusing to overwrite nonempty file {}", path_buf.display()),
+                    _ => eprintln!("couldn't open output {} for writing", path_buf.display())
+                }
+                exit(1);
+            }
+        },
+        None => fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::sink())))
     }
 }
 
-pub(crate) fn make_writer_pair(output_paths: (&PathBuf, &PathBuf))
+pub(crate) fn make_writer_pair(output_paths: (Option<&PathBuf>, Option<&PathBuf>))
                                -> (fastq::Writer<WriterMaybeGzip>, fastq::Writer<WriterMaybeGzip>) {
     (writer_from_path(output_paths.0), writer_from_path(output_paths.1))
 }

@@ -10,7 +10,7 @@ use flate2::bufread::MultiGzDecoder;
 pub(crate) enum ReaderMaybeGzip {
     GZIP(BufReader<MultiGzDecoder<BufReader<File>>>),
     UNCOMPRESSED(BufReader<File>),
-    // NULL(BufReader<io::Empty>),
+    NULL(BufReader<io::Empty>),
 }
 
 impl Read for ReaderMaybeGzip {
@@ -18,7 +18,7 @@ impl Read for ReaderMaybeGzip {
         match self {
             ReaderMaybeGzip::GZIP(backer) => backer.read(buf),
             ReaderMaybeGzip::UNCOMPRESSED(backer) => backer.read(buf),
-            // ReaderMaybeGzip::NULL(backer) => backer.read(buf),
+            ReaderMaybeGzip::NULL(backer) => backer.read(buf),
         }
     }
 }
@@ -28,7 +28,7 @@ impl BufRead for ReaderMaybeGzip {
         match self {
             ReaderMaybeGzip::GZIP(backer) => backer.fill_buf(),
             ReaderMaybeGzip::UNCOMPRESSED(backer) => backer.fill_buf(),
-            // ReaderMaybeGzip::NULL(backer) => backer.fill_buf(),
+            ReaderMaybeGzip::NULL(backer) => backer.fill_buf(),
         }
     }
 
@@ -36,7 +36,7 @@ impl BufRead for ReaderMaybeGzip {
         match self {
             ReaderMaybeGzip::GZIP(backer) => backer.consume(amt),
             ReaderMaybeGzip::UNCOMPRESSED(backer) => backer.consume(amt),
-            // ReaderMaybeGzip::NULL(backer) => backer.consume(amt),
+            ReaderMaybeGzip::NULL(backer) => backer.consume(amt),
         }
     }
 }
@@ -55,20 +55,23 @@ pub(crate) fn reader_maybe_gzip(path_buf: &PathBuf) -> Result<(fastq::Reader<Rea
     }
 }
 
-fn reader_from_path(path_buf: &PathBuf, silent: bool) -> fastq::Reader<ReaderMaybeGzip> {
-    match reader_maybe_gzip(path_buf) {
-        Ok((result, was_compressed)) => {
-            if was_compressed && !silent { eprintln!("info: parsing {} as a gzip", path_buf.display()) }
-            result
+fn reader_from_path(maybe_path_buf: Option<&PathBuf>, silent: bool) -> fastq::Reader<ReaderMaybeGzip> {
+    match maybe_path_buf {
+        Some(path_buf) => match reader_maybe_gzip(path_buf) {
+            Ok((result, was_compressed)) => {
+                if was_compressed && !silent { eprintln!("info: parsing {} as a gzip", path_buf.display()) }
+                result
+            }
+            Err(_) => {
+                eprintln!("couldn't open input {} for reading", path_buf.display());
+                exit(1);
+            }
         }
-        Err(_) => {
-            eprintln!("couldn't open input {} for reading", path_buf.display());
-            exit(1);
-        }
+        None => fastq::Reader::from_bufread(ReaderMaybeGzip::NULL(BufReader::new(io::empty())))
     }
 }
 
-pub(crate) fn make_reader_pair(input_paths: (&PathBuf, &PathBuf), silent: bool)
+pub(crate) fn make_reader_pair(input_paths: (Option<&PathBuf>, Option<&PathBuf>), silent: bool)
                                -> (fastq::Reader<ReaderMaybeGzip>, fastq::Reader<ReaderMaybeGzip>) {
     (reader_from_path(input_paths.0, silent), reader_from_path(input_paths.1, silent))
 }

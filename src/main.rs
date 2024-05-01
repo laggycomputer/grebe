@@ -137,17 +137,16 @@ fn main() {
     let args = cmd.get_matches();
 
     let input_paths = (
-        args.get_one::<PathBuf>("in-forward").unwrap(),
-        args.get_one::<PathBuf>("in-reverse").unwrap()
+        args.get_one::<PathBuf>("in-forward"),
+        args.get_one::<PathBuf>("in-reverse")
     );
     let record_readers = make_reader_pair(input_paths, true);
-    // TODO: reverse reads here too
     let total_records = record_readers.0.records().count();
     let record_readers = make_reader_pair(input_paths, false);
 
     let record_writers = writer::make_writer_pair((
-        args.get_one::<PathBuf>("out-forward").unwrap(),
-        args.get_one::<PathBuf>("out-reverse").unwrap()
+        args.get_one::<PathBuf>("out-forward"),
+        args.get_one::<PathBuf>("out-reverse")
     ));
 
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
