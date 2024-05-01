@@ -182,6 +182,7 @@ fn main() {
         None => levenshtein_max <= 2
     };
 
+    eprintln!("counted {}, working...", pluralize("pair", pair_handler.total_records as isize, true));
     let bar = ProgressBar::new(total_records as u64).with_finish(ProgressFinish::AndLeave);
 
     let pairs = record_readers.0.records().zip(record_readers.1.records());
@@ -271,18 +272,15 @@ fn main() {
 
     if umi_length > 0 {
         if pair_handler.records_written > 0 {
-            println!("filtered {} down to {} via UMI, wrote {} after pair-level filtering",
-                     pluralize("pair", pair_handler.total_records as isize, true),
+            println!("filtered down to {} via UMI, wrote {} after pair-level filtering",
                      pluralize("pair", pair_handler.good_records as isize, true),
                      pluralize("pair", pair_handler.records_written as isize, true))
         } else {
-            println!("filtered {} down to {} via UMI; writing to disk...",
-                     pluralize("pair", pair_handler.total_records as isize, true),
+            println!("filtered down to {} via UMI; writing to disk...",
                      pluralize("pair", pair_handler.good_records as isize, true));
         }
     } else {
-        println!("processed {}, wrote {} after pair-level filtering",
-                 pluralize("pair", pair_handler.total_records as isize, true),
+        println!("wrote {} after pair-level filtering",
                  pluralize("pair", pair_handler.records_written as isize, true))
     }
 
