@@ -6,7 +6,7 @@ use std::io::BufWriter;
 use bio::bio_types::sequence::SequenceRead;
 use bio::io::fastq;
 use itertools::Itertools;
-use strum_macros::VariantArray;
+use strum::VariantArray;
 
 use crate::types::{BaseQualityVotes, FastqPair, OutputWriters, QualityVoteTotal, QualityVoteVec, UMIVec, WhichRead};
 use crate::writer::WriterMaybeGzip;
