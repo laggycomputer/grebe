@@ -17,7 +17,7 @@ use types::FastqPair;
 
 use crate::pair_handler::PairHandler;
 use crate::reader::make_reader_pair;
-use crate::types::UMIVec;
+use crate::types::{OutputWriters, UMIVec};
 
 mod pair_handler;
 mod reader;
@@ -128,7 +128,17 @@ fn main() {
         .arg(clap::arg!(<"out-reverse"> "where to place processed reverse reads")
             .value_name("output reverse .fastq")
             .value_parser(clap::value_parser!(PathBuf))
-            .value_hint(ValueHint::FilePath));
+            .value_hint(ValueHint::FilePath))
+        .arg(clap::arg!(["out-unpaired-forward"] "where to place unpaired forward reads")
+            .value_name("output unpaired forward .fastq")
+            .value_parser(clap::value_parser!(PathBuf))
+            .value_hint(ValueHint::FilePath)
+            .required(false))
+        .arg(clap::arg!(["out-unpaired-reverse"] "where to place unpaired reverse reads")
+            .value_name("output unpaired reverse .fastq")
+            .value_parser(clap::value_parser!(PathBuf))
+            .value_hint(ValueHint::FilePath)
+            .required(false));
     // .arg(clap::arg!(<adapters>)
     //     .value_name("illumina adapters .fasta")
     //     .help("illumina adapters file (to prune them)")
@@ -144,10 +154,16 @@ fn main() {
     let total_records = record_readers.0.records().count();
     let record_readers = make_reader_pair(input_paths, false);
 
-    let record_writers = writer::make_writer_pair((
-        args.get_one::<PathBuf>("out-forward"),
-        args.get_one::<PathBuf>("out-reverse")
-    ));
+    let record_writers = OutputWriters {
+        paired: writer::make_writer_pair((
+            args.get_one::<PathBuf>("out-forward"),
+            args.get_one::<PathBuf>("out-reverse")
+        )),
+        unpaired: writer::make_writer_pair((
+            args.get_one::<PathBuf>("out-unpaired-forward"),
+            args.get_one::<PathBuf>("out-unpaired-reverse")
+        ))
+    };
 
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
 

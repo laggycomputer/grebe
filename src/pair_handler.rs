@@ -8,7 +8,7 @@ use bio::io::fastq;
 use itertools::Itertools;
 use strum_macros::VariantArray;
 
-use crate::types::{BaseQualityVotes, FastqPair, QualityVoteTotal, QualityVoteVec, UMIVec};
+use crate::types::{BaseQualityVotes, FastqPair, OutputWriters, QualityVoteTotal, QualityVoteVec, UMIVec};
 use crate::writer::WriterMaybeGzip;
 
 #[derive(Clone, Copy, PartialEq, VariantArray)]
@@ -52,7 +52,7 @@ impl UMICollisionResolutionMethod {
 }
 
 pub(crate) struct PairHandler {
-    pub(crate) record_writers: (fastq::Writer<WriterMaybeGzip>, fastq::Writer<WriterMaybeGzip>),
+    pub(crate) record_writers: OutputWriters,
     pub(crate) collision_resolution_method: UMICollisionResolutionMethod,
     pub(crate) umi_bins: HashMap<UMIVec, HashSet<FastqPair>>,
     pub(crate) total_records: usize,
@@ -65,9 +65,16 @@ pub(crate) struct PairHandler {
 impl Default for PairHandler {
     fn default() -> Self {
         PairHandler {
-            record_writers: (
-                fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::sink()))),
-                fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::sink())))),
+            record_writers: OutputWriters {
+                paired: (
+                    fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::sink()))),
+                    fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::sink())))
+                ),
+                unpaired: (
+                    fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::sink()))),
+                    fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::sink())))
+                ),
+            },
             collision_resolution_method: UMICollisionResolutionMethod::KeepFirst,
             umi_bins: Default::default(),
             total_records: 0,
@@ -93,14 +100,14 @@ impl PairHandler {
         //     continue;
         // }
 
-        self.record_writers.0.write(
+        self.record_writers.paired.0.write(
             std::str::from_utf8(pair.0.name()).unwrap(),
             Option::from(pair.0.id()),
             pair.0.seq(),
             pair.0.qual(),
         )
             .expect("couldn't write out a forward record");
-        self.record_writers.1.write(
+        self.record_writers.paired.0.write(
             std::str::from_utf8(pair.1.name()).unwrap(),
             Option::from(pair.1.id()),
             pair.1.seq(),
