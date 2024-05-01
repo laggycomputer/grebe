@@ -247,11 +247,12 @@ impl PairHandler {
         for (ind, (base, qual)) in pair.0.seq().iter()
             .zip(pair.0.qual()).dropping(umi_len)
             .enumerate() {
+            let vec_to_update = votes.0.get_mut(ind).unwrap();
             match base.to_ascii_uppercase() {
-                b'A' => votes.0.get_mut(ind).unwrap().0 += *qual as QualityVoteTotal,
-                b'T' => votes.0.get_mut(ind).unwrap().1 += *qual as QualityVoteTotal,
-                b'C' => votes.0.get_mut(ind).unwrap().2 += *qual as QualityVoteTotal,
-                b'G' => votes.0.get_mut(ind).unwrap().3 += *qual as QualityVoteTotal,
+                b'A' => vec_to_update.0 = vec_to_update.0.saturating_add(*qual as QualityVoteTotal),
+                b'T' => vec_to_update.1 = vec_to_update.1.saturating_add(*qual as QualityVoteTotal),
+                b'C' => vec_to_update.2 = vec_to_update.2.saturating_add(*qual as QualityVoteTotal),
+                b'G' => vec_to_update.3 = vec_to_update.3.saturating_add(*qual as QualityVoteTotal),
                 b'N' => {}  // this read abstains for this base
                 _ => unimplemented!()
             }
@@ -260,11 +261,12 @@ impl PairHandler {
         for (ind, (base, qual)) in pair.1.seq().iter()
             .zip(pair.1.qual())
             .enumerate() {
+            let vec_to_update = votes.1.get_mut(ind).unwrap();
             match base.to_ascii_uppercase() {
-                b'A' => votes.1.get_mut(ind).unwrap().0 += *qual as QualityVoteTotal,
-                b'T' => votes.1.get_mut(ind).unwrap().1 += *qual as QualityVoteTotal,
-                b'C' => votes.1.get_mut(ind).unwrap().2 += *qual as QualityVoteTotal,
-                b'G' => votes.1.get_mut(ind).unwrap().3 += *qual as QualityVoteTotal,
+                b'A' => vec_to_update.0 = vec_to_update.0.saturating_add(*qual as QualityVoteTotal),
+                b'T' => vec_to_update.1 = vec_to_update.1.saturating_add(*qual as QualityVoteTotal),
+                b'C' => vec_to_update.2 = vec_to_update.2.saturating_add(*qual as QualityVoteTotal),
+                b'G' => vec_to_update.3 = vec_to_update.3.saturating_add(*qual as QualityVoteTotal),
                 b'N' => {}  // this read abstains for this base
                 _ => unimplemented!()
             }
