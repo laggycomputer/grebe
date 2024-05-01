@@ -108,8 +108,8 @@ fn main() {
             .value_parser(0..=15)
             .required(false)
             .default_value("0"))
-        .arg(clap::arg!(--"proactive-levenshtein" <"force-mode"> "(for advanced users) force guess-and-check approach \
-        to levenshtein distance (default is true if -l is 1 or 2, false otherwise)")
+        .arg(clap::arg!(--"proactive-levenshtein" <"forcemode"> "(for advanced users, see docs; you shouldn't have to \
+        set this)")
             .visible_alias("pl")
             .value_parser(clap::value_parser!(bool))
             .required(false))
@@ -195,7 +195,8 @@ fn main() {
             }
             *result
         }
-        None => levenshtein_max <= 2
+        // --pl true's intelligent binning makes it much slower for --crm none
+        None => levenshtein_max <= 3 && collision_resolution_method != UMICollisionResolutionMethod::None
     };
 
     eprintln!("counted {}, working...", pluralize("pair", pair_handler.records_total as isize, true));
@@ -264,6 +265,8 @@ fn main() {
                     // generate UMIs within a certain distance and check them
                     // TODO: assumes no Ns outside of masked reads
 
+                    let mut found_bins = HashSet::new();
+
                     // first, generate all options for <levenshtein_max> new base values
                     let new_bases = std::iter::repeat("ATCG".chars())
                         .take(levenshtein_max as usize)
@@ -276,16 +279,32 @@ fn main() {
                             for (index, new_value) in (&indices_to_replace).iter().zip(base_substitution) {
                                 umi_modified[*index as usize] = new_value as u8;
                             }
-                            // if our result is already known, bail out
-                            if pair_handler.umi_bins.contains_key(&umi_modified) {
-                                pair_handler.insert_pair(&umi_modified, &(rec_fwr, rec_rev));
-                                continue 'pairs;
+
+                            if collision_resolution_method == UMICollisionResolutionMethod::None {
+                                found_bins.insert(umi_modified);
+                            } else {
+                                if pair_handler.umi_bins.contains_key(&umi_modified) {
+                                    pair_handler.insert_pair(&umi_modified, &(rec_fwr, rec_rev));
+                                    continue 'pairs;
+                                }
                             }
                         }
                     }
 
-                    // no proposed alternative was satisfactory; we have a new UMI
-                    pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
+                    // we reach this if:
+                    // no known UMI was suitable
+                    // or if --crm none and at least one known UMI was suitable
+                    match found_bins.into_iter()
+                        .max_by_key(|k| match pair_handler.umi_bins.get(k) {
+                            None => 0,
+                            Some(s) => s.len()
+                        }) {
+                        // if the first case above is true, the iterator stops immediately and we accept a new UMI
+                        None => pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev)),
+                        // if the second case is true, we have found a "best" UMI (defined as the UMI with the biggest
+                        // bin) and we use that one
+                        Some(umi_modified) => pair_handler.insert_pair(&umi_modified, &(rec_fwr, rec_rev))
+                    }
                 } else {
                     // non-proactive mode; just check every known UMI and see if it's close enough
 
