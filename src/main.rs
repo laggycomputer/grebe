@@ -108,7 +108,7 @@ fn main() {
             .value_parser(0..=15)
             .required(false)
             .default_value("0"))
-        .arg(clap::arg!(--"proactive-levenshtein" <"forcemode"> "(for advanced users, see docs; you shouldn't have to \
+        .arg(clap::arg!(--"proactive-levenshtein" <"force mode"> "(for advanced users, see docs; you shouldn't have to \
         set this)")
             .visible_alias("pl")
             .value_parser(clap::value_parser!(bool))
