@@ -288,13 +288,13 @@ impl PairHandler {
                             1 => totals.1,
                             2 => totals.2,
                             3 => totals.3,
-                            _ => unimplemented!()
+                            _ => unreachable!()
                         }).unwrap() {  // now convert the winning index to a base
                             0 => b'A',
                             1 => b'T',
                             2 => b'C',
                             3 => b'G',
-                            _ => unimplemented!()
+                            _ => unreachable!()
                         }
                     };
                     let resolved: (Vec<u8>, Vec<u8>) = (
