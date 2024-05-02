@@ -209,6 +209,11 @@ fn main() {
     'pairs: for (rec_fwr, rec_rev) in pairs {
         bar.inc(1);
 
+        // basic layout for this code:
+        // 1. verify validity of reads
+        // 2. verify validity of pair overall (paired/unpaired, sufficient length, primer, etc.)
+        // 3. match UMI and allow handler struct to decide what to do from there
+
         let rec_fwr = match rec_fwr {
             Ok(result) => match result.check() {
                 Ok(_) => result,
