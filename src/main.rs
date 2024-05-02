@@ -1,4 +1,4 @@
-use std::cmp::min;
+use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::exit;
@@ -151,7 +151,8 @@ fn main() {
         args.get_one::<PathBuf>("in-reverse")
     );
     let record_readers = make_reader_pair(input_paths, true);
-    let total_records = record_readers.0.records().count();
+    let total_records = (record_readers.0.records().count(), record_readers.1.records().count());
+
     let record_readers = make_reader_pair(input_paths, false);
 
     let record_writers = OutputWriters {
@@ -172,7 +173,7 @@ fn main() {
     let mut pair_handler = PairHandler {
         record_writers,
         collision_resolution_method,
-        records_total: total_records,
+        records_total: max(total_records.0, total_records.1),
         ..Default::default()
     };
 
@@ -200,7 +201,7 @@ fn main() {
     };
 
     eprintln!("counted {}, working...", pluralize("pair", pair_handler.records_total as isize, true));
-    let bar = ProgressBar::new(total_records as u64).with_finish(ProgressFinish::AndLeave);
+    let bar = ProgressBar::new(pair_handler.records_total as u64).with_finish(ProgressFinish::AndLeave);
 
     let pairs = record_readers.0.records().zip(record_readers.1.records());
     'pairs: for (rec_fwr, rec_rev) in pairs {
