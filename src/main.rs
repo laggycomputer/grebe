@@ -247,7 +247,7 @@ fn main() {
                 continue 'pairs;
             }
             (true, true) => {
-                // don't think this ever happens
+                pair_handler.pair_drop_reason_count.both_masked += 1;
                 continue 'pairs;
             }
             _ => {}

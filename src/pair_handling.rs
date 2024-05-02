@@ -8,7 +8,7 @@ use bio::io::fastq;
 use itertools::Itertools;
 use strum::VariantArray;
 
-use crate::types::{BaseQualityVotes, FastqPair, OutputWriters, QualityVoteTotal, QualityVoteVec, UMIVec, WhichRead};
+use crate::types::{BaseQualityVotes, FastqPair, OutputWriters, PairDropReasonCount, QualityVoteTotal, QualityVoteVec, UMIVec, WhichRead};
 use crate::writer::WriterMaybeGzip;
 
 #[derive(Clone, Copy, PartialEq, VariantArray)]
@@ -59,6 +59,7 @@ pub(crate) struct PairHandler {
     pub(crate) records_good: usize,
     pub(crate) records_written: usize,
     pub(crate) records_unpaired: (usize, usize),
+    pub(crate) pair_drop_reason_count: PairDropReasonCount,
     // ATCG order, only populated if --crm quality-vote
     pub(crate) quality_votes: HashMap<UMIVec, (QualityVoteVec, QualityVoteVec)>,
 }
@@ -82,6 +83,9 @@ impl Default for PairHandler {
             records_good: 0,
             records_written: 0,
             records_unpaired: (0, 0),
+            pair_drop_reason_count: PairDropReasonCount{
+                ..Default::default()
+            },
             quality_votes: Default::default(),
         }
     }
