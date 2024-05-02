@@ -206,7 +206,7 @@ fn main() {
     let bar = ProgressBar::new(pair_handler.records_total as u64).with_finish(ProgressFinish::AndLeave);
 
     let pairs = record_readers.0.records().zip(record_readers.1.records());
-    'pairs: for (rec_fwr, rec_rev) in pairs {
+    'pairs: for maybe_read_pair in pairs {
         bar.inc(1);
 
         // basic layout for this code:
@@ -214,41 +214,43 @@ fn main() {
         // 2. verify validity of pair overall (paired/unpaired, sufficient length, primer, etc.)
         // 3. match UMI and allow handler struct to decide what to do from there
 
-        let rec_fwr = match rec_fwr {
-            Ok(result) => match result.check() {
-                Ok(_) => result,
-                Err(err) => {
-                    eprintln!("forward record {} was invalid: {err}", pair_handler.records_total);
+        let read_pair = (
+            match maybe_read_pair.0 {
+                Ok(result) => match result.check() {
+                    Ok(_) => result,
+                    Err(err) => {
+                        eprintln!("forward record {} was invalid: {err}", pair_handler.records_total);
+                        exit(1);
+                    }
+                },
+                Err(_) => {
+                    eprintln!("forward record {} was invalid", pair_handler.records_total);
                     exit(1);
                 }
             },
-            Err(_) => {
-                eprintln!("forward record {} was invalid", pair_handler.records_total);
-                exit(1);
-            }
-        };
-        let rec_rev = match rec_rev {
-            Ok(result) => match result.check() {
-                Ok(_) => result,
-                Err(err) => {
-                    eprintln!("reverse record {} was invalid: {err}", pair_handler.records_total);
+            match maybe_read_pair.1 {
+                Ok(result) => match result.check() {
+                    Ok(_) => result,
+                    Err(err) => {
+                        eprintln!("reverse record {} was invalid: {err}", pair_handler.records_total);
+                        exit(1);
+                    }
+                },
+                Err(_) => {
+                    eprintln!("reverse record {} was invalid", pair_handler.records_total);
                     exit(1);
                 }
-            },
-            Err(_) => {
-                eprintln!("reverse record {} was invalid", pair_handler.records_total);
-                exit(1);
             }
-        };
+        );
 
         let n_closure = |s: &u8| *s == b'N';
-        match (rec_fwr.seq().iter().all(n_closure), rec_rev.seq().iter().all(n_closure)) {
+        match (read_pair.0.seq().iter().all(n_closure), read_pair.1.seq().iter().all(n_closure)) {
             (true, false) => {
-                pair_handler.write_unpaired(rec_rev, WhichRead::REVERSE);
+                pair_handler.write_unpaired(read_pair.0, WhichRead::REVERSE);
                 continue 'pairs;
             }
             (false, true) => {
-                pair_handler.write_unpaired(rec_fwr, WhichRead::FORWARD);
+                pair_handler.write_unpaired(read_pair.1, WhichRead::FORWARD);
                 continue 'pairs;
             }
             (true, true) => {
@@ -259,12 +261,12 @@ fn main() {
         }
 
         if umi_length > 0 {
-            let umi: UMIVec = rec_fwr.seq()[..umi_length as usize].iter().copied().collect();
+            let umi: UMIVec = read_pair.0.seq()[..umi_length as usize].iter().copied().collect();
             if levenshtein_max == 0 {
-                pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
+                pair_handler.insert_pair(&umi, &read_pair);
             } else {
                 if pair_handler.umi_bins.contains_key(&umi) {
-                    pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev));
+                    pair_handler.insert_pair(&umi, &read_pair);
                     continue 'pairs;
                 }
 
@@ -292,7 +294,7 @@ fn main() {
                                 found_bins.insert(umi_modified);
                             } else {
                                 if pair_handler.umi_bins.contains_key(&umi_modified) {
-                                    pair_handler.insert_pair(&umi_modified, &(rec_fwr, rec_rev));
+                                    pair_handler.insert_pair(&umi_modified, &read_pair);
                                     continue 'pairs;
                                 }
                             }
@@ -308,23 +310,23 @@ fn main() {
                             Some(s) => s.len()
                         }) {
                         // if the first case above is true, the iterator stops immediately and we accept a new UMI
-                        None => pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev)),
+                        None => pair_handler.insert_pair(&umi, &read_pair),
                         // if the second case is true, we have found a "best" UMI (defined as the UMI with the biggest
                         // bin) and we use that one
-                        Some(umi_modified) => pair_handler.insert_pair(&umi_modified, &(rec_fwr, rec_rev))
+                        Some(umi_modified) => pair_handler.insert_pair(&umi_modified, &read_pair)
                     }
                 } else {
                     // non-proactive mode; just check every known UMI and see if it's close enough
 
                     match find_within_radius(&pair_handler.umi_bins, &umi, levenshtein_max as usize) {
-                        None => pair_handler.insert_pair(&umi, &(rec_fwr, rec_rev)),
-                        Some(found) => pair_handler.insert_pair(&found, &(rec_fwr, rec_rev))
+                        None => pair_handler.insert_pair(&umi, &read_pair),
+                        Some(found) => pair_handler.insert_pair(&found, &read_pair)
                     }
                 }
             }
         } else {
             pair_handler.collision_resolution_method = UMICollisionResolutionMethod::None;
-            pair_handler.insert_pair(&vec![], &(rec_fwr, rec_rev));
+            pair_handler.insert_pair(&vec![], &read_pair);
         }
     }
 
