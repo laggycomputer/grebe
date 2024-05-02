@@ -2,11 +2,11 @@ use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::exit;
+use bio::alignment::distance::simd::bounded_levenshtein;
 
 use clap::{ArgGroup, ValueEnum, ValueHint};
 use clap::builder::PossibleValue;
 use clap::parser::ValueSource;
-use editdistancek::edit_distance_bounded;
 use indicatif::{ProgressBar, ProgressFinish};
 use itertools::Itertools;
 use pluralizer::pluralize;
@@ -26,7 +26,7 @@ mod types;
 
 fn find_within_radius(umi_bins: &HashMap<UMIVec, HashSet<FastqPair>>, umi: &UMIVec, radius: usize)
                       -> Option<UMIVec> {
-    umi_bins.keys().find(|proposed_umi| edit_distance_bounded(proposed_umi, umi, radius).is_some()).cloned()
+    umi_bins.keys().find(|proposed_umi| bounded_levenshtein(proposed_umi, umi, radius as u32).is_some()).cloned()
 }
 
 impl ValueEnum for UMICollisionResolutionMethod {
