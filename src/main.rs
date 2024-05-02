@@ -146,36 +146,10 @@ fn main() {
 
     let args = cmd.get_matches();
 
-    let input_paths = (
-        args.get_one::<PathBuf>("in-forward"),
-        args.get_one::<PathBuf>("in-reverse")
-    );
-    let record_readers = make_reader_pair(input_paths, true);
-    let total_records = (record_readers.0.records().count(), record_readers.1.records().count());
-
-    let record_readers = make_reader_pair(input_paths, false);
-
-    let record_writers = OutputWriters {
-        paired: writer::make_writer_pair((
-            args.get_one::<PathBuf>("out-forward"),
-            args.get_one::<PathBuf>("out-reverse")
-        )),
-        unpaired: writer::make_writer_pair((
-            args.get_one::<PathBuf>("out-unpaired-forward"),
-            args.get_one::<PathBuf>("out-unpaired-reverse")
-        )),
-    };
-
     let umi_length = *args.get_one::<i64>("umi-length").unwrap();
 
     let collision_resolution_method = args.get_one::<UMICollisionResolutionMethod>("collision-resolution-mode")
         .unwrap().to_owned();
-    let mut pair_handler = PairHandler {
-        record_writers,
-        collision_resolution_method,
-        records_total: max(total_records.0, total_records.1),
-        ..Default::default()
-    };
 
     // let start_index_arg = *args.get_one::<i64>("start-at").unwrap();
     // let start_index_rev = start_index_arg;
@@ -198,6 +172,34 @@ fn main() {
         }
         // --pl true's intelligent binning makes it much slower for --crm none
         None => levenshtein_max <= 3 && collision_resolution_method != UMICollisionResolutionMethod::None
+    };
+
+    let input_paths = (
+        args.get_one::<PathBuf>("in-forward"),
+        args.get_one::<PathBuf>("in-reverse")
+    );
+    let record_readers = make_reader_pair(input_paths, true);
+    let total_records = (record_readers.0.records().count(), record_readers.1.records().count());
+
+    let record_readers = make_reader_pair(input_paths, false);
+
+    let record_writers = OutputWriters {
+        paired: writer::make_writer_pair((
+            args.get_one::<PathBuf>("out-forward"),
+            args.get_one::<PathBuf>("out-reverse")
+        )),
+        unpaired: writer::make_writer_pair((
+            args.get_one::<PathBuf>("out-unpaired-forward"),
+            args.get_one::<PathBuf>("out-unpaired-reverse")
+        )),
+    };
+
+    let mut pair_handler = PairHandler {
+        record_writers,
+        collision_resolution_method,
+        records_total: max(total_records.0, total_records.1),
+        // primers:
+        ..Default::default()
     };
 
     eprintln!("counted {}, working...", pluralize("pair", pair_handler.records_total as isize, true));
