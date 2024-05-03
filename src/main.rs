@@ -2,8 +2,9 @@ use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::exit;
-use bio::alignment::distance::simd::bounded_levenshtein;
 
+use bio::alignment::distance::simd::bounded_levenshtein;
+use bio::alphabets::dna;
 use clap::{ArgGroup, ValueEnum, ValueHint};
 use clap::builder::PossibleValue;
 use clap::parser::ValueSource;
@@ -18,11 +19,13 @@ use types::FastqPair;
 use crate::pair_handling::PairHandler;
 use crate::reader::make_reader_pair;
 use crate::types::{OutputWriters, UMIVec, WhichRead};
+use crate::util::check_primer;
 
 mod pair_handling;
 mod reader;
 mod writer;
 mod types;
+mod util;
 
 fn find_within_radius(umi_bins: &HashMap<UMIVec, HashSet<FastqPair>>, umi: &UMIVec, radius: usize)
                       -> Option<UMIVec> {
@@ -113,6 +116,19 @@ fn main() {
             .visible_alias("pl")
             .value_parser(clap::value_parser!(bool))
             .required(false))
+        .arg(clap::arg!(--"forward-primer" <"forward primer"> "(IUPAC alphabet allowed) ensure forward reads begin \
+        with this sequence; if -u is specified, forwards starting with this primer are considered failed UMI additions \
+        and pair is discarded")
+            .visible_alias("fp")
+            .visible_alias("primer-forward")
+            .visible_alias("pf")
+            .required(false))
+        .arg(clap::arg!(--"reverse-primer" <"reverse primer"> "(IUPAC alphabet allowed) ensure reverse reads end with \
+        the reverse complement of this sequence; non-conforming pairs are discarded")
+            .visible_alias("rp")
+            .visible_alias("primer-reverse")
+            .visible_alias("pr")
+            .required(false))
         .arg(clap::arg!(--"start-at" <"start index"> "start reads after this many base pairs (but process UMIs even if \
         they would be clipped); reads which become empty are dropped")
             .visible_alias("--start-index")
@@ -174,6 +190,25 @@ fn main() {
         None => levenshtein_max <= 3 && collision_resolution_method != UMICollisionResolutionMethod::None
     };
 
+
+    let check_iupac_dna = |p: &String| !dna::iupac_alphabet().is_word(p.as_bytes());
+    if args.get_one::<String>("forward-primer").is_some_and(check_iupac_dna) {
+        eprintln!("forward primer not valid IUPAC DNA alphabet; refusing");
+        exit(1);
+    }
+    if args.get_one::<String>("reverse-primer").is_some_and(check_iupac_dna) {
+        eprintln!("reverse primer not valid IUPAC DNA alphabet; refusing");
+        exit(1);
+    }
+
+    let reverse_revcomp = args.get_one::<String>("reverse-primer").map(|s| s.as_bytes())
+        // forward and reverse reads reference the same strand; need to compute revcomp of reverse primer once
+        .map(|s| dna::revcomp(s.to_vec()).into_boxed_slice());
+    let enforce_primers = (
+        args.get_one::<String>("forward-primer").map(|s| s.as_bytes()),
+        reverse_revcomp.as_deref()
+    );
+
     let input_paths = (
         args.get_one::<PathBuf>("in-forward"),
         args.get_one::<PathBuf>("in-reverse")
@@ -198,7 +233,6 @@ fn main() {
         record_writers,
         collision_resolution_method,
         records_total: max(total_records.0, total_records.1),
-        // primers:
         ..Default::default()
     };
 
@@ -259,6 +293,41 @@ fn main() {
                 continue 'pairs;
             }
             _ => {}
+        }
+
+        if enforce_primers.0.is_some() {
+            if read_pair.0.seq().len() < umi_length as usize + enforce_primers.0.unwrap().len() {
+                pair_handler.pair_drop_reason_count.no_forward_primer += 1;
+                continue 'pairs;
+            }
+
+            if umi_length > 0 &&
+                check_primer(enforce_primers.0.as_ref().unwrap(), &read_pair.0.seq()).unwrap_or_default() {
+                // very unlikely the UMI then following seq is the primer; we will call this a bad UMI addition
+                pair_handler.pair_drop_reason_count.umi_is_forward_primer += 1;
+                continue 'pairs;
+            } else if !check_primer(
+                enforce_primers.0.as_ref().unwrap(),
+                &read_pair.0.seq()[umi_length as usize..],
+            ).unwrap_or_default() {
+                // primer not present where it should be
+                pair_handler.pair_drop_reason_count.no_forward_primer += 1;
+                continue 'pairs;
+            }
+        }
+        if enforce_primers.1.is_some() {
+            if read_pair.1.seq().len() < enforce_primers.1.unwrap().len() {
+                pair_handler.pair_drop_reason_count.no_reverse_primer += 1;
+                continue 'pairs;
+            }
+
+            if !check_primer(
+                enforce_primers.1.as_ref().unwrap(),
+                &read_pair.0.seq()[enforce_primers.0.map_or(0, |p| p.len())..],
+            ).unwrap_or_default() {
+                pair_handler.pair_drop_reason_count.no_reverse_primer += 1;
+                continue 'pairs;
+            }
         }
 
         if umi_length > 0 {
