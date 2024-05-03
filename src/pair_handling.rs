@@ -92,7 +92,7 @@ impl Default for PairHandler {
 }
 
 impl PairHandler {
-    pub(crate) fn write_pair(&mut self, pair: FastqPair) {
+    pub(crate) unsafe fn write_pair(&mut self, pair: FastqPair) {
         // TODO: reimplement slicing etc; increment some kind of dropped record counter
         self.records_written += 1;
 
@@ -102,14 +102,14 @@ impl PairHandler {
         // }
 
         self.record_writers.paired.0.write(
-            std::str::from_utf8(pair.0.name()).unwrap(),
+            std::str::from_utf8_unchecked(pair.0.name()),
             Option::from(pair.0.id()),
             pair.0.seq(),
             pair.0.qual(),
         )
             .expect("couldn't write out a forward record");
         self.record_writers.paired.0.write(
-            std::str::from_utf8(pair.1.name()).unwrap(),
+            std::str::from_utf8_unchecked(pair.1.name()),
             Option::from(pair.1.id()),
             pair.1.seq(),
             pair.1.qual(),
@@ -118,19 +118,19 @@ impl PairHandler {
 
     pub(crate) fn write_unpaired(&mut self, record: fastq::Record, which_read: WhichRead) {
         match which_read {
-            WhichRead::FORWARD => {
+            WhichRead::FORWARD => unsafe {
                 self.records_unpaired.0 += 1;
                 self.record_writers.unpaired.0.write(
-                    std::str::from_utf8(record.name()).unwrap(),
+                    std::str::from_utf8_unchecked(record.name()),
                     Option::from(record.id()),
                     record.seq(),
                     record.qual(),
                 ).expect("couldn't write out an unpaired forward record")
             }
-            WhichRead::REVERSE => {
+            WhichRead::REVERSE => unsafe {
                 self.records_unpaired.1 += 1;
                 self.record_writers.unpaired.1.write(
-                    std::str::from_utf8(record.name()).unwrap(),
+                    std::str::from_utf8_unchecked(record.name()),
                     Option::from(record.id()),
                     record.seq(),
                     record.qual(),
@@ -142,10 +142,10 @@ impl PairHandler {
     pub(crate) fn insert_pair(&mut self, umi: &UMIVec, pair: &FastqPair) {
         match self.collision_resolution_method {
             // special case: no comparison, etc., just go straight to disk
-            UMICollisionResolutionMethod::None => {
+            UMICollisionResolutionMethod::None => unsafe {
                 self.records_good += 1;
 
-                let umi_space = [String::from_utf8(umi.clone()).unwrap(), " ".parse().unwrap()].concat();
+                let umi_space = [String::from_utf8_unchecked(umi.clone()), " ".parse().unwrap()].concat();
                 // write the record, add UMI
                 let id_prefix = match umi.len() {
                     0 => "",
@@ -153,13 +153,13 @@ impl PairHandler {
                 };
                 let pair_new = (
                     fastq::Record::with_attrs(
-                        &*(id_prefix.to_owned() + std::str::from_utf8(pair.0.name()).unwrap()),
+                        &*(id_prefix.to_owned() + std::str::from_utf8_unchecked(pair.0.name())),
                         pair.0.desc(),
                         &*pair.0.seq(),
                         &*pair.0.qual(),
                     ),
                     fastq::Record::with_attrs(
-                        &*(id_prefix.to_owned() + std::str::from_utf8(pair.1.name()).unwrap()),
+                        &*(id_prefix.to_owned() + std::str::from_utf8_unchecked(pair.1.name())),
                         pair.1.desc(),
                         &*pair.1.seq(),
                         &*pair.1.qual(),
@@ -186,7 +186,7 @@ impl PairHandler {
                         Self::update_vote_vec(&mut votes, pair, umi.len());
                         self.quality_votes.insert(umi.clone(), votes);
                     }
-                    UMICollisionResolutionMethod::KeepFirst => {
+                    UMICollisionResolutionMethod::KeepFirst => unsafe {
                         // write the record immediately; save memory
                         self.write_pair(pair.clone());
                         // save an empty set so we don't come here again
@@ -308,22 +308,24 @@ impl PairHandler {
                         votes.0.iter().map(count_votes).collect(), votes.1.iter().map(count_votes).collect());
 
                     // this quality score is entirely fake
-                    self.write_pair((
-                        fastq::Record::with_attrs(
-                            std::str::from_utf8(&*umi).unwrap(),
-                            Option::from("constructed by grebe from quality voting"),
-                            &*resolved.0,
-                            &*iter::repeat(b"~").take(resolved.0.len()).map(|x| x[0]).collect::<Vec<u8>>(),
-                        ),
-                        fastq::Record::with_attrs(
-                            std::str::from_utf8(&*umi).unwrap(),
-                            Option::from("constructed by grebe from quality voting"),
-                            &*resolved.1,
-                            &*iter::repeat(b"~").take(resolved.1.len()).map(|x| x[0]).collect::<Vec<u8>>(),
-                        )
-                    ));
+                    unsafe {
+                        self.write_pair((
+                            fastq::Record::with_attrs(
+                                std::str::from_utf8_unchecked(&*umi),
+                                Option::from("constructed by grebe from quality voting"),
+                                &*resolved.0,
+                                &*iter::repeat(b"~").take(resolved.0.len()).map(|x| x[0]).collect::<Vec<u8>>(),
+                            ),
+                            fastq::Record::with_attrs(
+                                std::str::from_utf8_unchecked(&*umi),
+                                Option::from("constructed by grebe from quality voting"),
+                                &*resolved.1,
+                                &*iter::repeat(b"~").take(resolved.1.len()).map(|x| x[0]).collect::<Vec<u8>>(),
+                            )
+                        ));
+                    }
                 }
-                _ => {
+                _ => unsafe {
                     // conflict resolution has already selected a single read
                     self.write_pair(pairs.iter().exactly_one().unwrap().clone());
                 }

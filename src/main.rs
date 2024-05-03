@@ -214,6 +214,7 @@ fn main() {
         // 2. verify validity of pair overall (paired/unpaired, sufficient length, primer, etc.)
         // 3. match UMI and allow handler struct to decide what to do from there
 
+        // these checks permit me to go insane and unsafe every string parse
         let read_pair = (
             match maybe_read_pair.0 {
                 Ok(result) => match result.check() {
