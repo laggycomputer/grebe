@@ -207,12 +207,9 @@ fn main() {
         exit(1);
     }
 
-    let reverse_revcomp = args.get_one::<String>("reverse-primer").map(|s| s.as_bytes())
-        // forward and reverse reads reference the same strand; need to compute revcomp of reverse primer once
-        .map(|s| dna::revcomp(s.to_vec()).into_boxed_slice());
     let enforce_primers = (
         args.get_one::<String>("forward-primer").map(|s| s.as_bytes()),
-        reverse_revcomp.as_deref()
+        args.get_one::<String>("reverse-primer").map(|s| s.as_bytes())
     );
 
     let input_paths = (
@@ -330,7 +327,7 @@ fn main() {
                 continue 'pairs;
             }
 
-            let starts_with_primer = check_primer(enforce_primers.1.as_ref().unwrap(), &read_pair.1.seq())
+            let starts_with_primer = check_primer(enforce_primers.1.as_ref().unwrap(), read_pair.1.seq())
                 .unwrap_or_default();
 
             if !starts_with_primer {
