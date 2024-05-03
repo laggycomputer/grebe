@@ -307,15 +307,18 @@ fn main() {
                 continue 'pairs;
             }
 
-            if umi_length > 0 &&
-                check_primer(enforce_primers.0.as_ref().unwrap(), &read_pair.0.seq()).unwrap_or_default() {
+            let starts_with_primer = check_primer(enforce_primers.0.as_ref().unwrap(), &read_pair.0.seq())
+                .unwrap_or_default();
+            let starts_with_umi_then_primer = check_primer(
+                enforce_primers.0.as_ref().unwrap(),
+                &read_pair.0.seq()[umi_length as usize..],
+            ).unwrap_or_default();
+
+            if umi_length > 0 && starts_with_primer && !starts_with_umi_then_primer {
                 // very unlikely the UMI then following seq is the primer; we will call this a bad UMI addition
                 pair_handler.pair_drop_reason_count.umi_is_forward_primer += 1;
                 continue 'pairs;
-            } else if !check_primer(
-                enforce_primers.0.as_ref().unwrap(),
-                &read_pair.0.seq()[umi_length as usize..],
-            ).unwrap_or_default() {
+            } else if !starts_with_umi_then_primer {
                 // primer not present where it should be
                 pair_handler.pair_drop_reason_count.no_forward_primer += 1;
                 continue 'pairs;
@@ -327,7 +330,10 @@ fn main() {
                 continue 'pairs;
             }
 
-            if !check_primer(enforce_primers.1.as_ref().unwrap(), &read_pair.1.seq()).unwrap_or_default() {
+            let starts_with_primer = check_primer(enforce_primers.1.as_ref().unwrap(), &read_pair.1.seq())
+                .unwrap_or_default();
+
+            if !starts_with_primer {
                 pair_handler.pair_drop_reason_count.no_reverse_primer += 1;
                 continue 'pairs;
             }
