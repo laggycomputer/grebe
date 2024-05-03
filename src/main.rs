@@ -333,18 +333,25 @@ fn main() {
 
     bar.finish_using_style();
 
+    let total_dropped = pair_handler.pair_drop_reason_count.total();
+    println!("dropped {} for the following reasons:\n{}",
+             pluralize("pair", total_dropped as isize, true),
+             pair_handler.pair_drop_reason_count);
+
     if umi_length > 0 {
         if pair_handler.records_written > 0 {
-            println!("filtered down to {} via UMI, wrote {} after pair-level filtering",
+            println!("filtered {} down to {} via UMI, wrote {}",
+                     pluralize("remaining pair", (pair_handler.records_total - total_dropped) as isize, true),
                      pluralize("pair", pair_handler.records_good as isize, true),
                      pluralize("pair", pair_handler.records_written as isize, true));
         } else {
-            println!("filtered down to {} via UMI; writing to disk...",
+            println!("filtered {} down to {} via UMI; writing to disk...",
+                     pluralize("remaining pair", (pair_handler.records_total - total_dropped) as isize, true),
                      pluralize("pair", pair_handler.records_good as isize, true));
         }
     } else {
         println!("wrote {} after pair-level filtering",
-                 pluralize("pair", pair_handler.records_written as isize, true));
+                 pluralize("remaining pair", pair_handler.records_written as isize, true));
     }
 
     pair_handler.write_remaining();
