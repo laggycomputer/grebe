@@ -407,6 +407,24 @@ fn main() {
 
     bar.finish_using_style();
 
+    let words = (
+        match args.get_one::<PathBuf>("out-unpaired-forward").is_some() {
+            true => "wrote",
+            false => "dropped",
+        }, match args.get_one::<PathBuf>("out-unpaired-reverse").is_some() {
+            true => "wrote",
+            false => "dropped",
+        }
+    );
+    if pair_handler.records_unpaired.0 > 0 {
+        println!("{} {}", words.0,
+                 pluralize("unpaired forward read", pair_handler.records_unpaired.0 as isize, true));
+    }
+    if pair_handler.records_unpaired.1 > 0 {
+        println!("{} {}", words.1,
+                 pluralize("unpaired reverse read", pair_handler.records_unpaired.1 as isize, true));
+    }
+
     let total_dropped = pair_handler.pair_drop_reason_count.total();
     println!("dropped {} for the following reasons:\n{}",
              pluralize("pair", total_dropped as isize, true),
@@ -434,24 +452,6 @@ fn main() {
     }
 
     pair_handler.write_remaining();
-
-    match (args.get_one::<PathBuf>("out-unpaired-forward").is_some(),
-           args.get_one::<PathBuf>("out-unpaired-reverse").is_some()) {
-        (true, true) => {
-            println!("also wrote {} and {}",
-                     pluralize("unpaired forward record", pair_handler.records_unpaired.0 as isize, true),
-                     pluralize("unpaired reverse record", pair_handler.records_unpaired.1 as isize, true));
-        }
-        (true, false) => {
-            println!("also wrote {}",
-                     pluralize("unpaired forward record", pair_handler.records_unpaired.0 as isize, true));
-        }
-        (false, true) => {
-            println!("also wrote {}",
-                     pluralize("unpaired reverse record", pair_handler.records_unpaired.1 as isize, true));
-        }
-        _ => {}
-    }
 
     // TODO: verbose logging (masked reads, etc.)
     // TODO: exit codes
