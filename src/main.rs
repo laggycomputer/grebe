@@ -164,8 +164,14 @@ fn main() {
 
     let umi_length = *args.get_one::<i64>("umi-length").unwrap() as u8;
 
-    let collision_resolution_method = args.get_one::<UMICollisionResolutionMethod>("collision-resolution-mode")
-        .unwrap().to_owned();
+    let collision_resolution_method;
+    if umi_length == 0 {
+        // silently override this; --crm is meaningless in this context
+        collision_resolution_method = UMICollisionResolutionMethod::None;
+    } else {
+        collision_resolution_method = args.get_one::<UMICollisionResolutionMethod>("collision-resolution-mode")
+            .unwrap().to_owned();
+    }
 
     // let start_index_arg = *args.get_one::<i64>("start-at").unwrap();
     // let start_index_rev = start_index_arg;
@@ -395,7 +401,6 @@ fn main() {
                 }
             }
         } else {
-            pair_handler.collision_resolution_method = UMICollisionResolutionMethod::None;
             pair_handler.insert_pair(&vec![], &read_pair);
         }
     }
