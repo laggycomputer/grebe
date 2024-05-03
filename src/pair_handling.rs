@@ -81,8 +81,8 @@ impl Display for PairDropReasonCount {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "masked on both ends: {}\n\
         nonzero UMI length, forward primer specified, and forward read with UMI began with primer: {}\n\
-        forward primer specified and primer region not present: {}\n\
-        reverse primer specified and primer region not present: {}",
+        forward primer specified and not present: {}\n\
+        reverse primer specified and not present: {}",
                self.both_masked, self.umi_is_forward_primer, self.no_forward_primer, self.no_reverse_primer)
     }
 }
