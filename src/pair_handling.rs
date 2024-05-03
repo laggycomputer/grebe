@@ -83,7 +83,7 @@ impl Default for PairHandler {
             records_good: 0,
             records_written: 0,
             records_unpaired: (0, 0),
-            pair_drop_reason_count: PairDropReasonCount{
+            pair_drop_reason_count: PairDropReasonCount {
                 ..Default::default()
             },
             quality_votes: Default::default(),
@@ -118,23 +118,27 @@ impl PairHandler {
 
     pub(crate) fn write_unpaired(&mut self, record: fastq::Record, which_read: WhichRead) {
         match which_read {
-            WhichRead::FORWARD => unsafe {
+            WhichRead::FORWARD => {
                 self.records_unpaired.0 += 1;
-                self.record_writers.unpaired.0.write(
-                    std::str::from_utf8_unchecked(record.name()),
-                    Option::from(record.id()),
-                    record.seq(),
-                    record.qual(),
-                ).expect("couldn't write out an unpaired forward record")
+                unsafe {
+                    self.record_writers.unpaired.0.write(
+                        std::str::from_utf8_unchecked(record.name()),
+                        Option::from(record.id()),
+                        record.seq(),
+                        record.qual(),
+                    ).expect("couldn't write out an unpaired forward record")
+                }
             }
-            WhichRead::REVERSE => unsafe {
+            WhichRead::REVERSE => {
                 self.records_unpaired.1 += 1;
-                self.record_writers.unpaired.1.write(
-                    std::str::from_utf8_unchecked(record.name()),
-                    Option::from(record.id()),
-                    record.seq(),
-                    record.qual(),
-                ).expect("couldn't write out an unpaired reverse record")
+                unsafe {
+                    self.record_writers.unpaired.1.write(
+                        std::str::from_utf8_unchecked(record.name()),
+                        Option::from(record.id()),
+                        record.seq(),
+                        record.qual(),
+                    ).expect("couldn't write out an unpaired reverse record")
+                }
             }
         };
     }
