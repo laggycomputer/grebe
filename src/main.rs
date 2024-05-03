@@ -424,6 +424,7 @@ fn main() {
                      pluralize("pair", pair_handler.records_good as isize, true));
         }
     } else {
+        // everything that survived pair filtering went straight to disk (no UMI matching)
         println!("wrote {} after pair-level filtering",
                  pluralize("remaining pair", pair_handler.records_written as isize, true));
     }
