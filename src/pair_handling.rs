@@ -1,6 +1,7 @@
 use std::{io, iter};
 use std::cmp::{max, Ordering};
 use std::collections::{HashMap, HashSet};
+use std::fmt::{Display, Formatter};
 use std::io::BufWriter;
 
 use bio::bio_types::sequence::SequenceRead;
@@ -8,7 +9,7 @@ use bio::io::fastq;
 use itertools::Itertools;
 use strum::VariantArray;
 
-use crate::types::{BaseQualityVotes, FastqPair, OutputWriters, PairDropReasonCount, QualityVoteTotal, QualityVoteVec, UMIVec, WhichRead};
+use crate::types::{BaseQualityVotes, FastqPair, OutputWriters, QualityVoteTotal, QualityVoteVec, UMIVec, WhichRead};
 use crate::writer::WriterMaybeGzip;
 
 #[derive(Clone, Copy, PartialEq, VariantArray)]
@@ -48,6 +49,41 @@ impl UMICollisionResolutionMethod {
             }
             _ => unimplemented!()
         }
+    }
+}
+
+
+pub(crate) struct PairDropReasonCount {
+    pub(crate) both_masked: usize,
+    pub(crate) umi_is_forward_primer: usize,
+    pub(crate) no_forward_primer: usize,
+    pub(crate) no_reverse_primer: usize,
+}
+
+impl PairDropReasonCount {
+    pub(crate) fn total(&self) -> usize {
+        self.both_masked + self.umi_is_forward_primer + self.no_forward_primer + self.no_reverse_primer
+    }
+}
+
+impl Default for PairDropReasonCount {
+    fn default() -> Self {
+        PairDropReasonCount {
+            both_masked: 0,
+            umi_is_forward_primer: 0,
+            no_forward_primer: 0,
+            no_reverse_primer: 0,
+        }
+    }
+}
+
+impl Display for PairDropReasonCount {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "masked on both ends: {}\n\
+        nonzero UMI length and forward read with UMI began with primer: {}\n\
+        forward primer region not present: {}\n\
+        reverse primer region not present: {}",
+               self.both_masked, self.umi_is_forward_primer, self.no_forward_primer, self.no_reverse_primer)
     }
 }
 

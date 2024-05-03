@@ -18,15 +18,3 @@ pub(crate) enum WhichRead {
 
 pub(crate) type BaseQualityVotes = (QualityVoteTotal, QualityVoteTotal, QualityVoteTotal, QualityVoteTotal);
 pub(crate) type QualityVoteVec = Vec<BaseQualityVotes>;
-
-pub(crate) struct PairDropReasonCount {
-    pub(crate) both_masked: usize,
-}
-
-impl Default for PairDropReasonCount {
-    fn default() -> Self {
-        PairDropReasonCount {
-            both_masked: Default::default(),
-        }
-    }
-}
