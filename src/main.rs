@@ -414,11 +414,15 @@ fn main() {
 
     if umi_length > 0 {
         if pair_handler.records_written > 0 {
-            println!("filtered {} down to {} via UMI, wrote {}",
+            // assumption: records_written = records_good
+            // this is valid in the current design where all good pairs are already written to disk at this point
+            // said pairs have already been "forgotten", so there is no further information to report
+            println!("filtered {} to {} via UMI, wrote to disk",
                      pluralize("remaining pair", (pair_handler.records_total - total_dropped) as isize, true),
-                     pluralize("pair", pair_handler.records_good as isize, true),
                      pluralize("pair", pair_handler.records_written as isize, true));
         } else {
+            // not printing any additional information here either like UMI bins since number of bins is equal to number
+            // of pairs here
             println!("filtered {} down to {} via UMI; writing to disk...",
                      pluralize("remaining pair", (pair_handler.records_total - total_dropped) as isize, true),
                      pluralize("pair", pair_handler.records_good as isize, true));
