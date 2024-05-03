@@ -438,11 +438,10 @@ fn main() {
                      pluralize("remaining pair", (pair_handler.records_total - total_dropped) as isize, true),
                      pluralize("pair", pair_handler.records_written as isize, true));
         } else {
-            // not printing any additional information here either like UMI bins since number of bins is equal to number
-            // of pairs here
+            // records_good is not populated, but number of bins is
             println!("filtered {} down to {} via UMI; writing to disk...",
                      pluralize("remaining pair", (pair_handler.records_total - total_dropped) as isize, true),
-                     pluralize("pair", pair_handler.records_good as isize, true));
+                     pluralize("pair", pair_handler.umi_bins.len() as isize, true));
         }
     } else {
         // everything that survived pair filtering went straight to disk (no UMI matching)
