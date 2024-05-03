@@ -146,7 +146,7 @@ fn main() {
 
     let args = cmd.get_matches();
 
-    let umi_length = *args.get_one::<i64>("umi-length").unwrap();
+    let umi_length = *args.get_one::<i64>("umi-length").unwrap() as u8;
 
     let collision_resolution_method = args.get_one::<UMICollisionResolutionMethod>("collision-resolution-mode")
         .unwrap().to_owned();
@@ -155,7 +155,7 @@ fn main() {
     // let start_index_rev = start_index_arg;
     // let start_index_fwr = max(start_index_arg, umi_length);
 
-    let levenshtein_max = min(*args.get_one::<i64>("levenshtein-radius").unwrap(), umi_length);
+    let levenshtein_max = min(*args.get_one::<i64>("levenshtein-radius").unwrap() as u8, umi_length);
     if levenshtein_max >= umi_length && args.value_source("levenshtein-radius") == Some(ValueSource::CommandLine) {
         eprintln!("warning: --levenshtein-max too high to be meaningful")
     }
