@@ -347,7 +347,7 @@ fn main() {
                  pluralize("pair", pair_handler.records_written as isize, true));
     }
 
-    pair_handler.save_remaining();
+    pair_handler.write_remaining();
 
     match (args.get_one::<PathBuf>("out-unpaired-forward").is_some(),
            args.get_one::<PathBuf>("out-unpaired-reverse").is_some()) {
