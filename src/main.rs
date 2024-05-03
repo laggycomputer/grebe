@@ -404,21 +404,23 @@ fn main() {
 
     bar.finish_using_style();
 
-    let words = (
+    let saved_verb = "wrote";
+    let dropped_verb = "no save path specified; dropped";
+    let verbs = (
         match args.get_one::<PathBuf>("out-unpaired-forward").is_some() {
-            true => "wrote",
-            false => "dropped",
+            true => saved_verb,
+            false => dropped_verb,
         }, match args.get_one::<PathBuf>("out-unpaired-reverse").is_some() {
-            true => "wrote",
-            false => "dropped",
+            true => saved_verb,
+            false => dropped_verb,
         }
     );
     if pair_handler.records_unpaired.0 > 0 {
-        println!("{} {}", words.0,
+        println!("{} {}", verbs.0,
                  pluralize("unpaired forward read", pair_handler.records_unpaired.0 as isize, true));
     }
     if pair_handler.records_unpaired.1 > 0 {
-        println!("{} {}", words.1,
+        println!("{} {}", verbs.1,
                  pluralize("unpaired reverse read", pair_handler.records_unpaired.1 as isize, true));
     }
 
