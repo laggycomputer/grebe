@@ -233,7 +233,7 @@ impl PairHandler {
                     UMICollisionResolutionMethod::KeepLongestLeft | UMICollisionResolutionMethod::KeepLongestRight |
                     UMICollisionResolutionMethod::KeepLongestExtend => {
                         // this clone isn't the best but meh
-                        let old = set.iter().next().unwrap().clone();
+                        let old = set.iter().exactly_one().unwrap().clone();
                         set.remove(&old);
 
                         set.insert((
@@ -325,7 +325,7 @@ impl PairHandler {
                 }
                 _ => {
                     // conflict resolution has already selected a single read
-                    self.write_pair(pairs.iter().next().unwrap().clone());
+                    self.write_pair(pairs.iter().exactly_one().unwrap().clone());
                 }
             };
         }
