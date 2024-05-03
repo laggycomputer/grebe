@@ -327,10 +327,7 @@ fn main() {
                 continue 'pairs;
             }
 
-            if !check_primer(
-                enforce_primers.1.as_ref().unwrap(),
-                &read_pair.0.seq()[enforce_primers.0.map_or(0, |p| p.len())..],
-            ).unwrap_or_default() {
+            if !check_primer(enforce_primers.1.as_ref().unwrap(), &read_pair.1.seq()).unwrap_or_default() {
                 pair_handler.pair_drop_reason_count.no_reverse_primer += 1;
                 continue 'pairs;
             }
