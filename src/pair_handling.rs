@@ -347,7 +347,7 @@ impl PairHandler {
                     let resolved: (Vec<u8>, Vec<u8>) = (
                         votes.0.iter().map(count_votes).collect(), votes.1.iter().map(count_votes).collect());
 
-                    // this quality score is entirely fake
+                    // TODO: forgot you can do math on probabilities
                     unsafe {
                         self.write_pair((
                             fastq::Record::with_attrs(
