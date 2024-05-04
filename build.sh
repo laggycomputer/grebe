@@ -1,6 +1,8 @@
 cargo build --release
 
-other_targets=(
+targets=(
+    "x86_64-unknown-linux-gnu"
+    "i686-unknown-linux-gnu"
     # legacy raspberry pi, the most comical of benchmarking systems
     # sudo apt install gcc-arm-linux-gnueabihf
     "armv7-unknown-linux-gnueabihf"
@@ -10,7 +12,7 @@ other_targets=(
     # i love apple's ARR policies
 #     "x86_64-apple-darwin"
 )
-for target in "${other_targets[@]}"; do
+for target in "${targets[@]}"; do
     rustup target add $target
     cargo build --target=$target --release
 done
