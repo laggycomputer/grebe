@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::exit;
 
-use bio::alignment::distance::simd::bounded_levenshtein;
+use bio::alignment::distance::simd::hamming;
 use bio::alphabets::dna;
 use clap::{ArgGroup, ValueEnum, ValueHint};
 use clap::builder::PossibleValue;
@@ -29,7 +29,7 @@ mod util;
 
 fn find_within_radius(umi_bins: &HashMap<UMIVec, HashSet<FastqPair>>, umi: &UMIVec, radius: usize)
                       -> Option<UMIVec> {
-    umi_bins.keys().find(|proposed_umi| bounded_levenshtein(proposed_umi, umi, radius as u32).is_some()).cloned()
+    umi_bins.keys().find(|proposed_umi| hamming(proposed_umi, umi) <= radius as u64).cloned()
 }
 
 impl ValueEnum for UMICollisionResolutionMethod {
@@ -102,16 +102,15 @@ fn main() {
             .visible_alias("crm")
             .value_parser(clap::value_parser!(UMICollisionResolutionMethod))
             .default_value("keep-first"))
-        .arg(clap::arg!(-'l' <"levenshtein radius"> "bin UMIs together if at most this Levenshtein distance apart \
+        .arg(clap::arg!(--"hr" <"hamming radius"> "bin UMIs together if at most this Hamming distance apart \
         (good for small library error tolerance, but very slow on genomic-scale data)")
-            .id("levenshtein-radius")
-            .visible_alias("levenshtein")
-            .visible_alias("levenshtein-radius")
-            .visible_alias("lr")
+            .id("hamming-radius")
+            .visible_alias("hamming")
+            .visible_alias("hamming-radius")
             .value_parser(0..=15)
             .required(false)
             .default_value("0"))
-        .arg(clap::arg!(--"proactive-levenshtein" <"force mode"> "(for advanced users, see docs; you shouldn't have to \
+        .arg(clap::arg!(--"proactive-binning" <"force mode"> "(for advanced users, see docs; you shouldn't have to \
         set this)")
             .visible_alias("pl")
             .value_parser(clap::value_parser!(bool))
@@ -177,23 +176,23 @@ fn main() {
     // let start_index_rev = start_index_arg;
     // let start_index_fwr = max(start_index_arg, umi_length);
 
-    let levenshtein_max = min(*args.get_one::<i64>("levenshtein-radius").unwrap() as u8, umi_length);
-    if levenshtein_max >= umi_length && args.value_source("levenshtein-radius") == Some(ValueSource::CommandLine) {
-        eprintln!("warning: --levenshtein-max too high to be meaningful")
+    let hamming_radius = min(*args.get_one::<i64>("hamming-radius").unwrap() as u8, umi_length);
+    if hamming_radius >= umi_length && args.value_source("hamming-radius") == Some(ValueSource::CommandLine) {
+        eprintln!("warning: --hamming-max too high to be meaningful")
     }
 
     // TODO: debug print here
-    let proactive_levenshtein = match args.get_one::<bool>("proactive-levenshtein") {
+    let proactive_binning = match args.get_one::<bool>("proactive-hamming") {
         Some(result) => {
             if umi_length == 0 {
-                eprintln!("warning: --proactive-levenshtein is meaningless with no UMI")
-            } else if levenshtein_max == 0 {
-                eprintln!("warning: --proactive-levenshtein is meaningless with -l 0")
+                eprintln!("warning: --proactive_binning is meaningless with no UMI")
+            } else if hamming_radius == 0 {
+                eprintln!("warning: --proactive_binning is meaningless with -l 0")
             }
             *result
         }
         // --pl true's intelligent binning makes it much slower for --crm none
-        None => levenshtein_max <= 3 && collision_resolution_method != UMICollisionResolutionMethod::None
+        None => hamming_radius <= 3 && collision_resolution_method != UMICollisionResolutionMethod::None
     };
 
 
@@ -338,7 +337,7 @@ fn main() {
 
         if umi_length > 0 {
             let umi: UMIVec = read_pair.0.seq()[..umi_length as usize].iter().copied().collect();
-            if levenshtein_max == 0 {
+            if hamming_radius == 0 {
                 pair_handler.insert_pair(&umi, &read_pair);
             } else {
                 if pair_handler.umi_bins.contains_key(&umi) {
@@ -346,19 +345,19 @@ fn main() {
                     continue 'pairs;
                 }
 
-                if proactive_levenshtein {
+                if proactive_binning {
                     // instead of checking the distance to elements of the set of known UMIs,
                     // generate UMIs within a certain distance and check them
                     // TODO: assumes no Ns outside of masked reads
 
                     let mut found_bins = HashSet::new();
 
-                    // first, generate all options for <levenshtein_max> new base values
+                    // first, generate all options for <hamming_max> new base values
                     let new_bases = std::iter::repeat("ATCG".chars())
-                        .take(levenshtein_max as usize)
+                        .take(hamming_radius as usize)
                         .multi_cartesian_product();
-                    // then, generate all options for <levenshtein_max> positions to replace at
-                    for indices_to_replace in (0..umi_length).combinations(levenshtein_max as usize) {
+                    // then, generate all options for <hamming_radius> positions to replace at
+                    for indices_to_replace in (0..umi_length).combinations(hamming_radius as usize) {
                         // execute the replacement
                         for base_substitution in new_bases.clone() {
                             let mut umi_modified = umi.clone();
@@ -394,7 +393,7 @@ fn main() {
                 } else {
                     // non-proactive mode; just check every known UMI and see if it's close enough
 
-                    match find_within_radius(&pair_handler.umi_bins, &umi, levenshtein_max as usize) {
+                    match find_within_radius(&pair_handler.umi_bins, &umi, hamming_radius as usize) {
                         None => pair_handler.insert_pair(&umi, &read_pair),
                         Some(found) => pair_handler.insert_pair(&found, &read_pair)
                     }
