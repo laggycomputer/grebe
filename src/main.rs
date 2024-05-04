@@ -112,7 +112,7 @@ fn main() {
             .default_value("0"))
         .arg(clap::arg!(--"proactive-binning" <"force mode"> "(for advanced users, see docs; you shouldn't have to \
         set this)")
-            .visible_alias("pl")
+            .visible_alias("pb")
             .value_parser(clap::value_parser!(bool))
             .required(false))
         .arg(clap::arg!(--"forward-primer" <"forward primer"> "(IUPAC alphabet allowed) ensure forward reads begin \
