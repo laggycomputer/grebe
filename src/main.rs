@@ -195,6 +195,10 @@ fn main() {
         None => hamming_radius <= 3 && collision_resolution_method != UMICollisionResolutionMethod::None
     };
 
+    let phred_correction = match args.get_flag("phred64") {
+        false => 33,
+        true => 64,
+    };
 
     let check_iupac_dna = |p: &String| !dna::iupac_alphabet().is_word(p.as_bytes());
     if args.get_one::<String>("forward-primer").is_some_and(check_iupac_dna) {
@@ -235,6 +239,7 @@ fn main() {
         record_writers,
         collision_resolution_method,
         records_total: max(total_records.0, total_records.1),
+        phred_correction,
         ..Default::default()
     };
 

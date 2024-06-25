@@ -91,6 +91,7 @@ pub(crate) struct PairHandler {
     pub(crate) record_writers: OutputWriters,
     pub(crate) collision_resolution_method: UMICollisionResolutionMethod,
     pub(crate) umi_bins: HashMap<UMIVec, HashSet<FastqPair>>,
+    pub(crate) phred_correction: u8,
     pub(crate) records_total: usize,
     pub(crate) records_good: usize,
     pub(crate) records_written: usize,
@@ -115,6 +116,7 @@ impl Default for PairHandler {
             },
             collision_resolution_method: UMICollisionResolutionMethod::KeepFirst,
             umi_bins: Default::default(),
+            phred_correction: 33,
             records_total: 0,
             records_good: 0,
             records_written: 0,
@@ -223,7 +225,7 @@ impl PairHandler {
                         votes.0.extend(iter::repeat((0, 0, 0, 0)).take(pair.0.len() - umi.len()));
                         votes.1.extend(iter::repeat((0, 0, 0, 0)).take(pair.1.len()));
 
-                        Self::update_vote_vec(&mut votes, pair, umi.len());
+                        Self::update_vote_vec(self.phred_correction, &mut votes, pair, umi.len());
                         self.quality_votes.insert(umi.clone(), votes);
                     }
                     UMICollisionResolutionMethod::KeepFirst => unsafe {
@@ -262,7 +264,7 @@ impl PairHandler {
                             iter::repeat((0, 0, 0, 0))
                                 .take(max(pair.1.seq().len().saturating_sub(votes.1.len()), 0)));
 
-                        Self::update_vote_vec(&mut votes, pair, umi.len());
+                        Self::update_vote_vec(self.phred_correction, &mut votes, pair, umi.len());
                     }
                     // un-special cases, again
                     UMICollisionResolutionMethod::KeepLast => {
@@ -287,16 +289,18 @@ impl PairHandler {
         }
     }
 
-    fn update_vote_vec(votes: &mut (QualityVoteVec, QualityVoteVec), pair: &FastqPair, umi_len: usize) {
+    fn update_vote_vec(phred_correction: u8, votes: &mut (QualityVoteVec, QualityVoteVec), pair: &FastqPair, umi_len: usize) {
         for (ind, (base, qual)) in pair.0.seq().iter()
             .zip(pair.0.qual()).dropping(umi_len)
             .enumerate() {
             let vec_to_update = votes.0.get_mut(ind).unwrap();
+            let actual_qual = (qual - phred_correction) as QualityVoteTotal;
+
             match base.to_ascii_uppercase() {
-                b'A' => vec_to_update.0 = vec_to_update.0.saturating_add(*qual as QualityVoteTotal),
-                b'T' => vec_to_update.1 = vec_to_update.1.saturating_add(*qual as QualityVoteTotal),
-                b'C' => vec_to_update.2 = vec_to_update.2.saturating_add(*qual as QualityVoteTotal),
-                b'G' => vec_to_update.3 = vec_to_update.3.saturating_add(*qual as QualityVoteTotal),
+                b'A' => vec_to_update.0 = vec_to_update.0.saturating_add(actual_qual),
+                b'T' => vec_to_update.1 = vec_to_update.1.saturating_add(actual_qual),
+                b'C' => vec_to_update.2 = vec_to_update.2.saturating_add(actual_qual),
+                b'G' => vec_to_update.3 = vec_to_update.3.saturating_add(actual_qual),
                 b'N' => {}  // this read abstains for this base
                 _ => unimplemented!()
             }
@@ -306,11 +310,13 @@ impl PairHandler {
             .zip(pair.1.qual())
             .enumerate() {
             let vec_to_update = votes.1.get_mut(ind).unwrap();
+            let actual_qual = (qual - phred_correction) as QualityVoteTotal;
+
             match base.to_ascii_uppercase() {
-                b'A' => vec_to_update.0 = vec_to_update.0.saturating_add(*qual as QualityVoteTotal),
-                b'T' => vec_to_update.1 = vec_to_update.1.saturating_add(*qual as QualityVoteTotal),
-                b'C' => vec_to_update.2 = vec_to_update.2.saturating_add(*qual as QualityVoteTotal),
-                b'G' => vec_to_update.3 = vec_to_update.3.saturating_add(*qual as QualityVoteTotal),
+                b'A' => vec_to_update.0 = vec_to_update.0.saturating_add(actual_qual),
+                b'T' => vec_to_update.1 = vec_to_update.1.saturating_add(actual_qual),
+                b'C' => vec_to_update.2 = vec_to_update.2.saturating_add(actual_qual),
+                b'G' => vec_to_update.3 = vec_to_update.3.saturating_add(actual_qual),
                 b'N' => {}  // this read abstains for this base
                 _ => unimplemented!()
             }
@@ -319,7 +325,7 @@ impl PairHandler {
 
     pub(crate) fn write_remaining(&mut self) {
         for (umi, pairs) in
-        <HashMap<UMIVec, HashSet<(fastq::Record, fastq::Record)>> as Clone>::clone(&self.umi_bins).into_iter() {
+            <HashMap<UMIVec, HashSet<(fastq::Record, fastq::Record)>> as Clone>::clone(&self.umi_bins).into_iter() {
             match self.collision_resolution_method {
                 UMICollisionResolutionMethod::KeepFirst | UMICollisionResolutionMethod::None => {
                     // these records are already on disk
@@ -327,16 +333,24 @@ impl PairHandler {
                 UMICollisionResolutionMethod::QualityVote => {
                     let votes = self.quality_votes.get(&umi).unwrap();
 
-                    // for a tuple of vote totals:
-                    let count_votes = |totals: &BaseQualityVotes| -> u8 {
-                        // for each possible base (0..4), fetch the number of votes for that base
-                        match (0..4).max_by_key(|i| match i {
+                    let total_from_index = |totals: &BaseQualityVotes, index: &u8| -> QualityVoteTotal {
+                        match index {
                             0 => totals.0,
                             1 => totals.1,
                             2 => totals.2,
                             3 => totals.3,
                             _ => unreachable!()
-                        }).unwrap() {  // now convert the winning index to a base
+                        }
+                    };
+
+                    // for a tuple of vote totals:
+                    let votes_to_winning_index = |totals: &BaseQualityVotes| -> u8 {
+                        // for each possible base (0..4), fetch the number of votes for that base
+                        (0..4).max_by_key(|i| total_from_index(totals, i)).unwrap()
+                    };
+
+                    let select_winner = |index: u8| -> u8 {
+                        match index {  // now convert the winning index to a base
                             0 => b'A',
                             1 => b'T',
                             2 => b'C',
@@ -344,8 +358,11 @@ impl PairHandler {
                             _ => unreachable!()
                         }
                     };
+
                     let resolved: (Vec<u8>, Vec<u8>) = (
-                        votes.0.iter().map(count_votes).collect(), votes.1.iter().map(count_votes).collect());
+                        votes.0.iter().map(votes_to_winning_index).collect(),
+                        votes.1.iter().map(votes_to_winning_index).collect()
+                    );
 
                     // TODO: forgot you can do math on probabilities
                     unsafe {
@@ -353,14 +370,23 @@ impl PairHandler {
                             fastq::Record::with_attrs(
                                 std::str::from_utf8_unchecked(&*umi),
                                 Option::from("constructed by grebe from quality voting"),
-                                &*resolved.0,
-                                &*iter::repeat(b"~").take(resolved.0.len()).map(|x| x[0]).collect::<Vec<u8>>(),
+                                &resolved.0.into_iter().map(select_winner).collect::<Vec<u8>>(),
+                                // for each vote 4-tuple: get the best index, then get the total at that index
+                                votes.0.iter()
+                                    .map(|v| total_from_index(v, &votes_to_winning_index(v)))
+                                    .map(|total| (total + self.phred_correction as QualityVoteTotal) as u8)
+                                    .collect::<Vec<u8>>()
+                                    .as_slice(),
                             ),
                             fastq::Record::with_attrs(
                                 std::str::from_utf8_unchecked(&*umi),
                                 Option::from("constructed by grebe from quality voting"),
-                                &*resolved.1,
-                                &*iter::repeat(b"~").take(resolved.1.len()).map(|x| x[0]).collect::<Vec<u8>>(),
+                                &resolved.1.into_iter().map(select_winner).collect::<Vec<u8>>(),
+                                votes.1.iter()
+                                    .map(|v| total_from_index(v, &votes_to_winning_index(v)))
+                                    .map(|total| (total + self.phred_correction as QualityVoteTotal) as u8)
+                                    .collect::<Vec<u8>>()
+                                    .as_slice(),
                             )
                         ));
                     }
