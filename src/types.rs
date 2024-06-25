@@ -4,7 +4,7 @@ use crate::writer::WriterMaybeGzip;
 
 pub(crate) type FastqPair = (fastq::Record, fastq::Record);
 pub(crate) type UMIVec = Vec<u8>;
-pub(crate) type QualityVoteTotal = u32;
+pub(crate) type QualityVoteTotal = u64;
 
 pub(crate) struct OutputWriters {
     pub(crate) paired: (fastq::Writer<WriterMaybeGzip>, fastq::Writer<WriterMaybeGzip>),
