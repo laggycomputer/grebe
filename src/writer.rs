@@ -11,7 +11,7 @@ use flate2::write::GzEncoder;
 pub(crate) enum WriterMaybeGzip {
     GZIP(GzEncoder<File>),
     UNCOMPRESSED(File),
-    NULL(io::Sink),
+    NULL(io::Empty),
 }
 
 impl Write for WriterMaybeGzip {
@@ -67,7 +67,7 @@ pub(crate) fn writer_from_path(maybe_path_buf: Option<&PathBuf>) -> fastq::Write
                 exit(1);
             }
         },
-        None => fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::sink())))
+        None => fastq::Writer::from_bufwriter(BufWriter::new(WriterMaybeGzip::NULL(io::empty())))
     }
 }
 
